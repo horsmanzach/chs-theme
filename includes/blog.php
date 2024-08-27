@@ -1647,7 +1647,20 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
     					echo '<a href="' . esc_url($zoom_link) . '" class="zoom-link" target="_blank">Zoom Link</a>';
 					}
 
-					/*Date of Event Custom Field*/
+					/*Listen to Recording Custom Field*/
+
+					$listen_to_recording = get_post_meta($post->ID, 'listen_to_recording', true);
+						if ($listen_to_recording != '') {
+    					echo '<a href="' . esc_url($listen_to_recording) . '" class="zoom-link" target="_blank">Listen to Recording</a>';
+					}
+
+					$reserve_your_spot = get_post_meta($post->ID, 'reserve_your_spot', true);
+						if ($reserve_your_spot != '') {
+    					echo '<a href="' . esc_url($reserve_your_spot) . '" class="zoom-link" target="_blank">Reserve Your Spot</a>';
+					}
+
+					/*Squared Date of Event Custom Field*/
+
 					$date_of_event = get_post_meta($post->ID, 'date_of_event', true);
 
 					if ($date_of_event) {
@@ -1665,8 +1678,14 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
     					echo '<div class="event-month-year">' . esc_html($month_year) . '</div>';
    						 echo '</div>';
 					}
-					
 
+					/*Secondary Date of Event Custom Field*/
+					
+					if ($date_of_event) {
+    				$formatted_date = DateTime::createFromFormat('Ymd', $date_of_event)->format('M j, Y');
+    				echo '<div class="secondary-event-date">' . esc_html($formatted_date) . '</div>';
+					}
+					
 					$multi_view->render_element(
 						array(
 							'tag'            => 'div',
