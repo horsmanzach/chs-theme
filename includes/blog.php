@@ -1669,7 +1669,7 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 
 					/*Website Custom Field*/
 
-					$webiste = get_post_meta($post->ID, 'website', true);
+					$website = get_post_meta($post->ID, 'website', true);
 						if ($website != '') {
     					echo (get_post_meta($post->ID, 'website', true) != '') ? '<div class="td-website">'. get_post_meta($post->ID, 'website', true) . '</div>' : "";
 					}
