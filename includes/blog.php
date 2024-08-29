@@ -1636,6 +1636,54 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 
 					echo '<div class="post-content">';
 
+					/*----Trades Directory Custom Fields*/
+
+					/*Address Custom Field*/
+
+					$address = get_post_meta($post->ID, 'address', true);
+						if ($address != '') {
+    					echo (get_post_meta($post->ID, 'address', true) != '') ? '<div class="td-address">'. get_post_meta($post->ID, 'address', true) . '</div>' : "";
+					}
+
+					/*Contact Custom Field*/
+
+					$contact = get_post_meta($post->ID, 'contact', true);
+						if ($contact != '') {
+    					echo (get_post_meta($post->ID, 'contact', true) != '') ? '<div class="td-contact">'. get_post_meta($post->ID, 'contact', true) . '</div>' : "";
+					}
+
+
+					/*City Custom Field*/
+
+					$city = get_post_meta($post->ID, 'city', true);
+						if ($city != '') {
+    					echo (get_post_meta($post->ID, 'city', true) != '') ? '<div class="td-city">'. get_post_meta($post->ID, 'city', true) . '</div>' : "";
+					}
+
+					/*Phone Custom Field*/
+
+					$phone = get_post_meta($post->ID, 'phone', true);
+						if ($phone != '') {
+    					echo (get_post_meta($post->ID, 'phone', true) != '') ? '<div class="td-phone">'. get_post_meta($post->ID, 'phone', true) . '</div>' : "";
+					}
+
+					/*Website Custom Field*/
+
+					$webiste = get_post_meta($post->ID, 'website', true);
+						if ($website != '') {
+    					echo (get_post_meta($post->ID, 'website', true) != '') ? '<div class="td-website">'. get_post_meta($post->ID, 'website', true) . '</div>' : "";
+					}
+
+					/*Email Custom Field*/
+
+					$email = get_post_meta($post->ID, 'email', true);
+						if ($email != '') {
+    					echo (get_post_meta($post->ID, 'email', true) != '') ? '<div class="td-email">'. get_post_meta($post->ID, 'email', true) . '</div>' : "";
+					}
+					
+
+					/* -------Events Custom Fields------*/
+					
 					/*Time and Place Custom Field*/
 
 					echo (get_post_meta($post->ID, 'time_and_place', true) != '') ? '<div class="time-and-place">'. get_post_meta($post->ID, 'time_and_place', true) . '</div>' : "";
