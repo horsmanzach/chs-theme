@@ -1634,51 +1634,52 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 						);
 					}
 
-					echo '<div class="post-content">';
 
-					/*----Trades Directory Custom Fields*/
+	echo '<div class="post-content">';
+
+					/*-----Trades Directory Custom Fields*/
 
 					/*Address Custom Field*/
-
+					$address_prepend = 'Address: ';
 					$address = get_post_meta($post->ID, 'address', true);
 						if ($address != '') {
-    					echo (get_post_meta($post->ID, 'address', true) != '') ? '<div class="td-address">'. get_post_meta($post->ID, 'address', true) . '</div>' : "";
-					}
+    					 echo '<div class="td-address">' . esc_html($address_prepend) . esc_html($address) . '</div>';
+					} 
 
 					/*Contact Custom Field*/
-
+					$contact_prepend = 'Contact: ';
 					$contact = get_post_meta($post->ID, 'contact', true);
 						if ($contact != '') {
-    					echo (get_post_meta($post->ID, 'contact', true) != '') ? '<div class="td-contact">'. get_post_meta($post->ID, 'contact', true) . '</div>' : "";
-					}
+    					 echo '<div class="td-contact">' . esc_html($contact_prepend) . esc_html($contact) . '</div>';
+					} 
 
 
 					/*City Custom Field*/
-
+					$city_prepend = 'City: ';
 					$city = get_post_meta($post->ID, 'city', true);
 						if ($city != '') {
-    					echo (get_post_meta($post->ID, 'city', true) != '') ? '<div class="td-city">'. get_post_meta($post->ID, 'city', true) . '</div>' : "";
-					}
+    					echo '<div class="td-city">' . esc_html($city_prepend) . esc_html($city) . '</div>';
+					} 
 
 					/*Phone Custom Field*/
-
-					$phone = get_post_meta($post->ID, 'phone', true);
+					$phone_prepend = 'Phone: ';
+					 $phone = get_post_meta($post->ID, 'phone', true);
 						if ($phone != '') {
-    					echo (get_post_meta($post->ID, 'phone', true) != '') ? '<div class="td-phone">'. get_post_meta($post->ID, 'phone', true) . '</div>' : "";
-					}
+    					 echo '<div class="td-phone">' . esc_html($phone_prepend) . esc_html($phone) . '</div>';
+					} 
 
 					/*Website Custom Field*/
-
+					$website_prepend = 'Website: ';
 					$website = get_post_meta($post->ID, 'website', true);
 						if ($website != '') {
-    					echo (get_post_meta($post->ID, 'website', true) != '') ? '<div class="td-website">'. get_post_meta($post->ID, 'website', true) . '</div>' : "";
-					}
+    					 echo '<div class="td-website">' . esc_html($website_prepend) . '<a href="' . esc_url($website) . '" target="_blank">' . esc_html($website) . '</a></div>';
+					} 
 
 					/*Email Custom Field*/
-
+					$email_prepend ='Email: ';
 					$email = get_post_meta($post->ID, 'email', true);
 						if ($email != '') {
-    					echo (get_post_meta($post->ID, 'email', true) != '') ? '<div class="td-email">'. get_post_meta($post->ID, 'email', true) . '</div>' : "";
+    					echo '<div class="td-email">' . esc_html($email_prepend) . '<a href="mailto:' . esc_attr($email) . '">' . esc_html($email) . '</a></div>';
 					}
 					
 
