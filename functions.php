@@ -8,6 +8,36 @@ function chs_assets() {
 
 } 
 
+/*Create shortcode to display categories for the Trades Directory post type*/
+
+function shows_cats ( $atts ) {
+
+    // extract custom taxonomy parameter of the shortcode
+
+    extract( shortcode_atts( array( 
+        'custom_taxonomy' => 'job_category',
+    ),
+     $atts ) );
+
+    // arguments for function wp_list_categories
+
+    $args = array (
+        taxonomy => $custom_taxonomy,
+        title_li => ''
+    );
+
+    // Wrap it in an unordered list
+
+    echo '<ul class="td-categories">';
+    echo wp_list_categories($args);
+    echo '</ul>';
+
+}
+
+// Add shortcode that executes the function
+
+add_shortcode ('showcats', 'shows_cats');
+
 /*Change Events Custom Post Type Post Order from Ascending to Descedning*/
 
 function custom_order_events_desc( $query ) {
