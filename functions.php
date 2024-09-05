@@ -8,35 +8,49 @@ function chs_assets() {
 
 } 
 
+/*Update the default placeholder text for the body content of the Trades Directory post type*/
+
+function custom_gutenberg_placeholder_script() {
+    global $post_type;
+    
+    // Only enqueue script for 'trades_directory' post type
+    if ( $post_type === 'trades-directory' ) {
+        wp_enqueue_script(
+            'custom-gutenberg-placeholder',
+            get_template_directory_uri() . '/js/custom-gutenberg-placeholder.js', // Change this path if necessary
+            array( 'wp-blocks', 'wp-dom-ready', 'wp-edit-post' ),
+            null,
+            true
+        );
+    }
+}
+add_action( 'admin_enqueue_scripts', 'custom_gutenberg_placeholder_script' );
+
+
+
 /*Create shortcode to display categories for the Trades Directory post type*/
 
-function shows_cats ( $atts ) {
-
-    // extract custom taxonomy parameter of the shortcode
-
-    extract( shortcode_atts( array( 
+function shows_cats( $atts ) {
+    // Extract custom taxonomy parameter of the shortcode
+    $atts = shortcode_atts( array(
         'custom_taxonomy' => 'job_category',
-    ),
-     $atts ) );
+    ), $atts );
 
-    // arguments for function wp_list_categories
-
-    $args = array (
-        taxonomy => $custom_taxonomy,
-        title_li => ''
+    // Arguments for wp_list_categories
+    $args = array(
+        'taxonomy' => $atts['custom_taxonomy'],
+        'title_li' => '',
+        'echo' => false // Return instead of echoing
     );
 
-    // Wrap it in an unordered list
+    // Get the categories list
+    $categories = wp_list_categories( $args );
 
-    echo '<ul class="td-categories">';
-    echo wp_list_categories($args);
-    echo '</ul>';
-
+    // Wrap it in an unordered list and return
+    return '<ul class="td-categories">' . $categories . '</ul>';
 }
+add_shortcode( 'show_business_categories', 'shows_cats' );
 
-// Add shortcode that executes the function
-
-add_shortcode ('showcats', 'shows_cats');
 
 /*Change Events Custom Post Type Post Order from Ascending to Descedning*/
 
