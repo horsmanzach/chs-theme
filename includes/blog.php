@@ -1643,43 +1643,43 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 					$address_prepend = 'Address: ';
 					$address = get_post_meta($post->ID, 'address', true);
 						if ($address != '') {
-    					 echo '<div class="td-address">' . esc_html($address_prepend) . esc_html($address) . '</div>';
+    					 echo '<div class="td-address"><span class="prepend-text">Address: </span>' . esc_html($address) . '</div>';
 					} 
 
 					/*Contact Custom Field*/
 					$contact_prepend = 'Contact: ';
 					$contact = get_post_meta($post->ID, 'contact', true);
 						if ($contact != '') {
-    					 echo '<div class="td-contact">' . esc_html($contact_prepend) . esc_html($contact) . '</div>';
+    					 echo '<div class="td-contact"><span class="prepend-text with-margin-contact">Contact: </span>' . esc_html($contact) . '</div>';
 					} 
 
 
 					/*City Custom Field*/
-					$city_prepend = 'City: ';
-					$city = get_post_meta($post->ID, 'city', true);
+					$city_prepend = 'Location: ';
+					$city = get_post_meta($post->ID, 'location', true);
 						if ($city != '') {
-    					echo '<div class="td-city">' . esc_html($city_prepend) . esc_html($city) . '</div>';
+    					echo '<div class="td-location"><span class="prepend-text with-margin">Location: </span>' . esc_html($city) . '</div>';
 					} 
 
 					/*Phone Custom Field*/
 					$phone_prepend = 'Phone: ';
 					 $phone = get_post_meta($post->ID, 'phone', true);
 						if ($phone != '') {
-    					 echo '<div class="td-phone">' . esc_html($phone_prepend) . esc_html($phone) . '</div>';
+    					 echo '<div class="td-phone"><span class="prepend-text with-margin-phone">Phone: </span>'  . esc_html($phone) . '</div>';
 					} 
 
 					/*Website Custom Field*/
 					$website_prepend = 'Website: ';
 					$website = get_post_meta($post->ID, 'website', true);
 						if ($website != '') {
-    					 echo '<div class="td-website">' . esc_html($website_prepend) . '<a href="' . esc_url($website) . '" target="_blank">' . esc_html($website) . '</a></div>';
+    					 echo '<div class="td-website"><span class="prepend-text with-margin">Website: </span>' . '<a href="' . esc_url($website) . '" target="_blank">' . esc_html($website) . '</a></div>';
 					} 
 
 					/*Email Custom Field*/
 					$email_prepend ='Email: ';
 					$email = get_post_meta($post->ID, 'email', true);
 						if ($email != '') {
-    					echo '<div class="td-email">' . esc_html($email_prepend) . '<a href="mailto:' . esc_attr($email) . '">' . esc_html($email) . '</a></div>';
+    					echo '<div class="td-email"><span class="prepend-text with-margin-email">Email: </span>' . '<a href="mailto:' . esc_attr($email) . '">' . esc_html($email) . '</a></div>';
 					}
 					
 
