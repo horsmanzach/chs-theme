@@ -10,23 +10,19 @@ function chs_assets() {
 
 /*Update the default placeholder text for the body content of the Trades Directory post type*/
 
-function custom_gutenberg_placeholder_script() {
-    global $post_type;
-    
-    // Only enqueue script for 'trades_directory' post type
-    if ( $post_type === 'trades-directory' ) {
-        wp_enqueue_script(
-            'custom-gutenberg-placeholder',
-            get_template_directory_uri() . '/js/custom-gutenberg-placeholder.js', // Change this path if necessary
-            array( 'wp-blocks', 'wp-dom-ready', 'wp-edit-post' ),
-            null,
-            true
-        );
+function custom_trades_directory_placeholder( $string, $post ) {
+    // Check if the post type is 'trades-directory'
+    if ( $post->post_type === 'trades-directory' ) {
+        // Modify the placeholder text
+        return 'Type to add a business description';
     }
+
+    // Return the original string if the post type is not 'trades-directory'
+    return $string;
 }
-add_action( 'admin_enqueue_scripts', 'custom_gutenberg_placeholder_script' );
 
-
+// Hook the custom function into the 'write_your_story' filter
+add_filter( 'write_your_story', 'custom_trades_directory_placeholder', 10, 2 );
 
 /*Create shortcode to display categories for the Trades Directory post type*/
 
