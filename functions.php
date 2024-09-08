@@ -8,6 +8,7 @@ function chs_assets() {
 
 } 
 
+
 /*Update the default placeholder text for the body content of the Trades Directory post type*/
 
 function custom_trades_directory_placeholder( $string, $post ) {
@@ -24,6 +25,8 @@ function custom_trades_directory_placeholder( $string, $post ) {
 // Hook the custom function into the 'write_your_story' filter
 add_filter( 'write_your_story', 'custom_trades_directory_placeholder', 10, 2 );
 
+
+
 /*Create shortcode to display categories for the Trades Directory post type*/
 
 function shows_cats( $atts ) {
@@ -36,14 +39,18 @@ function shows_cats( $atts ) {
     $args = array(
         'taxonomy' => $atts['custom_taxonomy'],
         'title_li' => '',
+        'hide_empty' => false,
         'echo' => false // Return instead of echoing
     );
 
     // Get the categories list
     $categories = wp_list_categories( $args );
 
+    // Add the 'All' category at the tpp with the desired URL
+    $all_link = '<li class="cat-item-all"><a href="https://corteshousingsociety.magnaprototype.com/trades-directory">All</a></li>';
+
     // Wrap it in an unordered list and return
-    return '<ul class="td-categories">' . $categories . '</ul>';
+    return '<ul class="td-categories">' . $all_link . $categories . '</ul>';
 }
 add_shortcode( 'show_business_categories', 'shows_cats' );
 
