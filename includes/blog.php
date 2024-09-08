@@ -1388,6 +1388,13 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 
 		$args['paged'] = $et_paged;
 
+		
+		// Check if the post type is 'trades-directory' or if it's a 'job_category' taxonomy archive
+		if ( ( isset( $args['post_type'] ) && $args['post_type'] == 'trades-directory' ) || is_tax( 'job_category' ) ) {
+    	$args['orderby'] = 'title';
+    	$args['order'] = 'asc';
+		}
+
 		if ( '' !== $offset_number && ! empty( $offset_number ) ) {
 			/**
 			 * Offset + pagination don't play well. Manual offset calculation required
@@ -1658,7 +1665,7 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 					$city_prepend = 'Location: ';
 					$city = get_post_meta($post->ID, 'location', true);
 						if ($city != '') {
-    					echo '<div class="td-location"><span class="prepend-text with-margin">Location: </span>' . esc_html($city) . '</div>';
+    					echo '<div class="td-location"><span class="prepend-text with-margin-location">Location: </span>' . esc_html($city) . '</div>';
 					} 
 
 					/*Phone Custom Field*/
