@@ -9,21 +9,25 @@ function chs_assets() {
 } 
 
 
-/*Update the default placeholder text for the body content of the Trades Directory post type*/
+// Add Custom Validating for Trades Directory Phone Field
+// Enusures that fields receives exactly 10 digits
 
-function custom_trades_directory_placeholder( $string, $post ) {
-    // Check if the post type is 'trades-directory'
-    if ( $post->post_type === 'trades-directory' ) {
-        // Modify the placeholder text
-        return 'Type to add a business description';
+function validate_phone_number_length($valid, $value, $field, $input) {
+    // Only run validation for the "phone" field (check the field key or name)
+    if ($field['name'] === 'phone') { // Replace 'phone' with your actual field name if different
+
+        // Remove non-numeric characters from the phone number
+        $cleaned_value = preg_replace('/\D/', '', $value);
+
+        // Check if the number contains only digits and is exactly 10 characters long
+        if (!ctype_digit($cleaned_value) || strlen($cleaned_value) !== 10) {
+            $valid = 'Phone number must contain exactly 10 digits and be all numeric.';
+        }
     }
 
-    // Return the original string if the post type is not 'trades-directory'
-    return $string;
+    return $valid;
 }
-
-// Hook the custom function into the 'write_your_story' filter
-add_filter( 'write_your_story', 'custom_trades_directory_placeholder', 10, 2 );
+add_filter('acf/validate_value/name=phone', 'validate_phone_number_length', 10, 4);
 
 
 
