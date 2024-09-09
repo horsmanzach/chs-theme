@@ -1668,13 +1668,25 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
     					echo '<div class="td-location"><span class="prepend-text with-margin-location">Location: </span>' . esc_html($city) . '</div>';
 					} 
 
-					/*Phone Custom Field*/
-					$phone_prepend = 'Phone: ';
-					 $phone = get_post_meta($post->ID, 'phone', true);
-						if ($phone != '') {
-    					 echo '<div class="td-phone"><span class="prepend-text with-margin-phone">Phone: </span>'  . esc_html($phone) . '</div>';
-					} 
+					/*Phone Custom Field - formatted to show as (xxx) xxx-xxxx*/
 
+					$phone_prepend = 'Phone: ';
+
+					$raw_phone = get_post_meta($post -> ID, 'phone', true);
+
+					if (!empty($raw_phone) && preg_match('/^(\d{10})$/', $raw_phone)) {
+
+						$formatted_phone = sprintf("(%s) %s-%s",
+							substr($raw_phone, 0, 3), // First 3 digits
+							substr($raw_phone, 3, 3,), // Next 3 digits
+							substr($raw_phone, 6)); // Last 4 digits
+							
+							//output the formatted phone number
+							echo '<div class="td-phone"><span class="prepend-text with-margin-phone">Phone: </span>'  . esc_html($formatted_phone) . '</div>';
+					}
+			
+
+		
 					/*Website Custom Field*/
 					$website_prepend = 'Website: ';
 					$website = get_post_meta($post->ID, 'website', true);
