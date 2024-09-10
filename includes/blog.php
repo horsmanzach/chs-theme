@@ -1390,7 +1390,8 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 
 		
 		// Check if the post type is 'trades-directory' or if it's a 'job_category' taxonomy archive
-		if ( ( isset( $args['post_type'] ) && $args['post_type'] == 'trades-directory' ) || is_tax( 'job_category' ) ) {
+		
+		if ( ( isset( $args['post_type'] ) && $args['post_type'] == 'trades-directory' ) ) {
     	$args['orderby'] = 'title';
     	$args['order'] = 'asc';
 		}
@@ -1685,15 +1686,19 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 							echo '<div class="td-phone"><span class="prepend-text with-margin-phone">Phone: </span>'  . esc_html($formatted_phone) . '</div>';
 					}
 			
-
-		
-					/*Website Custom Field*/
+					// Website Custom Field
 					$website_prepend = 'Website: ';
 					$website = get_post_meta($post->ID, 'website', true);
-						if ($website != '') {
-    					 echo '<div class="td-website"><span class="prepend-text with-margin">Website: </span>' . '<a href="' . esc_url($website) . '" target="_blank">' . esc_html($website) . '</a></div>';
-					} 
 
+					if (!empty($website)) {
+    				// Remove http:// or https:// from the displayed URL
+    				$display_website = preg_replace('#^https?://#', '', rtrim($website, '/'));
+
+    				// Output the formatted website link
+   		 			echo '<div class="td-website"><span class="prepend-text with-margin">' . esc_html($website_prepend) . '</span>' .
+        			'<a href="' . esc_url($website) . '" target="_blank">' . esc_html($display_website) . '</a></div>';
+					}
+		
 					/*Email Custom Field*/
 					$email_prepend ='Email: ';
 					$email = get_post_meta($post->ID, 'email', true);
