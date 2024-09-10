@@ -8,21 +8,32 @@ function chs_assets() {
 
 } 
 
+//Order Posts Alphabetically on custom taxonomy 'job_category'
+
+function sort_trades_directory_taxonomy_alphabetically( $query ) {
+    // Check if it's not the admin area, it's the main query, and it's a job_category taxonomy archive
+    if ( !is_admin() && $query->is_main_query() && is_tax( 'job_category' ) ) {
+        $query->set( 'orderby', 'title' );
+        $query->set( 'order', 'ASC' );
+    }
+}
+add_action( 'pre_get_posts', 'sort_trades_directory_taxonomy_alphabetically' );
+
 
 // Add Custom Validating for Trades Directory Phone Field
 // Enusures that fields receives exactly 10 digits
 
 function validate_phone_number_length($valid, $value, $field, $input) {
     // Only run validation for the "phone" field (check the field key or name)
-    if ($field['name'] === 'phone') { // Replace 'phone' with your actual field name if different
+    if ($field['name'] === 'phone') { 
 
         // Remove non-numeric characters from the phone number
         $cleaned_value = preg_replace('/\D/', '', $value);
 
         // Check if the number contains only digits and is exactly 10 characters long
-        if (!ctype_digit($cleaned_value) || strlen($cleaned_value) !== 10) {
+      /*  if (!ctype_digit($cleaned_value) || strlen($cleaned_value) !== 10) {
             $valid = 'Phone number must contain exactly 10 digits and be all numeric.';
-        }
+        } */
     }
 
     return $valid;
