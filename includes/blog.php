@@ -1670,21 +1670,32 @@ class custom_ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 					} 
 
 					/*Phone Custom Field - formatted to show as (xxx) xxx-xxxx*/
-
 					$phone_prepend = 'Phone: ';
 
-					$raw_phone = get_post_meta($post -> ID, 'phone', true);
+					// Get the raw phone number from the custom field
+					$raw_phone = get_post_meta($post->ID, 'phone', true);
 
-					if (!empty($raw_phone) && preg_match('/^(\d{10})$/', $raw_phone)) {
+					if (!empty($raw_phone)) {
+    				// Remove all non-numeric characters
+   					 $raw_phone = preg_replace('/[^0-9]/', '', $raw_phone);
 
-						$formatted_phone = sprintf("(%s) %s-%s",
-							substr($raw_phone, 0, 3), // First 3 digits
-							substr($raw_phone, 3, 3,), // Next 3 digits
-							substr($raw_phone, 6)); // Last 4 digits
-							
-							//output the formatted phone number
-							echo '<div class="td-phone"><span class="prepend-text with-margin-phone">Phone: </span>'  . esc_html($formatted_phone) . '</div>';
-					}
+					   // Ensure the phone number has at least 10 digits and truncate if it has more
+    				if (strlen($raw_phone) > 10) {
+        				$raw_phone = substr($raw_phone, 0, 10);
+    				}
+
+    				// Format the phone number as (xxx) xxx-xxxx
+
+        				$formatted_phone = sprintf("(%s) %s-%s",
+            			substr($raw_phone, 0, 3), // First 3 digits (area code)
+            			substr($raw_phone, 3, 3), // Next 3 digits
+            			substr($raw_phone, 6));   // Last 4 digits 
+
+       				 	// Output the formatted phone number
+        				echo '<div class="td-phone"><span class="prepend-text with-margin-phone">' . esc_html($phone_prepend) . '</span>'  . esc_html($formatted_phone) . '</div>';
+    			
+				}
+
 			
 					// Website Custom Field
 					$website_prepend = 'Website: ';
