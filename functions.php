@@ -19,27 +19,19 @@ function sort_trades_directory_taxonomy_alphabetically( $query ) {
 }
 add_action( 'pre_get_posts', 'sort_trades_directory_taxonomy_alphabetically' );
 
+/*Update the default placeholder text for the body content of the Trades Directory post type*/
 
-// Add Custom Validating for Trades Directory Phone Field
-// Enusures that fields receives exactly 10 digits
-
-function validate_phone_number_length($valid, $value, $field, $input) {
-    // Only run validation for the "phone" field (check the field key or name)
-    if ($field['name'] === 'phone') { 
-
-        // Remove non-numeric characters from the phone number
-        $cleaned_value = preg_replace('/\D/', '', $value);
-
-        // Check if the number contains only digits and is exactly 10 characters long
-      /*  if (!ctype_digit($cleaned_value) || strlen($cleaned_value) !== 10) {
-            $valid = 'Phone number must contain exactly 10 digits and be all numeric.';
-        } */
+function custom_trades_directory_placeholder( $string, $post ) {
+    // Check if the post type is 'trades-directory'
+    if ( $post->post_type === 'trades-directory' ) {
+        // Modify the placeholder text
+        return 'Type to add a business description';
     }
-
-    return $valid;
-}
-add_filter('acf/validate_value/name=phone', 'validate_phone_number_length', 10, 4);
-
+   // Return the original string if the post type is not 'trades-directory'
+    return $string;
+    }
+    // Hook the custom function into the 'write_your_story' filter
+add_filter( 'write_your_story', 'custom_trades_directory_placeholder', 10, 2 );
 
 
 /*Create shortcode to display categories for the Trades Directory post type*/
