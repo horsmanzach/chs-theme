@@ -19,6 +19,42 @@ function sort_trades_directory_taxonomy_alphabetically( $query ) {
 }
 add_action( 'pre_get_posts', 'sort_trades_directory_taxonomy_alphabetically' );
 
+// Change Posts Menu & Submenu Titles to News
+
+function rename_posts_menu_label() {
+    global $menu, $submenu;
+
+    // Rename 'Posts' in the main menu
+    $menu[5][0] = 'News'; // Replace 'Custom Name' with the desired label
+
+    // Optional: Rename submenu items under 'Posts'
+    if (isset($submenu['edit.php'])) {
+        $submenu['edit.php'][5][0] = 'All News'; // 'All News'
+        $submenu['edit.php'][10][0] = 'Add News'; // 'Add News'
+    }
+}
+add_action('admin_menu', 'rename_posts_menu_label');
+
+function rename_post_object_label() {
+    global $wp_post_types;
+    $labels = &$wp_post_types['post']->labels;
+    $labels->name = 'News'; // Replace 'Custom Name' with the desired label
+    $labels->singular_name = 'News';
+    $labels->add_new = 'Add News';
+    $labels->add_new_item = 'Add a News Post';
+    $labels->edit_item = 'Edit a News Post';
+    $labels->new_item = 'New News Post';
+    $labels->view_item = 'View News Post';
+    $labels->search_items = 'Search News';
+    $labels->not_found = 'No News Post Found';
+    $labels->not_found_in_trash = 'No News Post in Trash';
+    $labels->all_items = 'All News';
+    $labels->menu_name = 'News';
+    $labels->name_admin_bar = 'News';
+}
+add_action('init', 'rename_post_object_label');
+
+
 /*Update the default placeholder text for the body content of the Trades Directory post type*/
 
 function custom_trades_directory_placeholder( $string, $post ) {
