@@ -9,6 +9,203 @@ function chs_assets() {
 }
 
 
+/*=====Debug Code======*/
+
+add_action('wp_footer', 'debug_form_submission');
+function debug_form_submission() {
+    ?>
+    <script>
+    jQuery(document).ready(function($) {
+        $('form').on('submit', function(e) {
+            console.log('Form submitted:', this);
+            console.log('Form data:', $(this).serialize());
+        });
+    });
+    </script>
+    <?php
+}
+
+/*====More debugging functions=====*/
+
+add_action('wp_footer', 'debug_usp_file_fields');
+function debug_usp_file_fields() {
+    ?>
+    <script>
+    jQuery(document).ready(function($) {
+        // Find all file inputs in the form
+        $('form input[type="file"]').each(function() {
+            console.log('File input found:', {
+                name: $(this).attr('name'),
+                id: $(this).attr('id'),
+                required: $(this).prop('required'),
+                multiple: $(this).prop('multiple'),
+                files: this.files.length
+            });
+        });
+        
+        // Check if USP Pro is properly initialized
+        if (typeof uspValid !== 'undefined') {
+            console.log('USP validation object found');
+        } else {
+            console.log('USP validation object not found');
+        }
+    });
+    </script>
+    <?php
+}
+
+
+/*=====Check for Hidden Form Validation Errors=======*/
+
+add_action('wp_footer', 'check_for_hidden_errors');
+function check_for_hidden_errors() {
+    ?>
+    <script>
+    jQuery(document).ready(function($) {
+        // Add click handler to the submit button
+        $('input[type="submit"], button[type="submit"]').on('click', function() {
+            console.log('Submit button clicked');
+            
+            // Check for any form fields with validation errors
+            setTimeout(function() {
+                $('.usp-error, .error, .invalid').each(function() {
+                    console.log('Field with error:', $(this).attr('name'));
+                });
+                
+                // Check for custom required fields that might be empty
+                $('[required], [data-required="true"]').each(function() {
+                    if (!$(this).val()) {
+                        console.log('Empty required field:', $(this).attr('name'));
+                    }
+                });
+            }, 500);
+        });
+    });
+    </script>
+    <?php
+}
+
+/*====Show all Checkbox CHoices on Front End Shortcode=======*/
+
+// Create a reusable shortcode for displaying checkbox fields with selected/unselected icons
+function display_checkbox_field_shortcode($atts) {
+    // Define default attributes
+    $attributes = shortcode_atts(
+        array(
+            'field' => 'amenities',     // Default field name
+            'title' => '',              // Optional title
+            'columns' => 4,             // Number of columns in grid
+            'icon_type' => 'default',   // Icon type: 'default' or 'sun'
+        ), 
+        $atts,
+        'display_checkbox_field'
+    );
+    
+    // Get the field name from attributes
+    $field_name = $attributes['field'];
+    $columns = intval($attributes['columns']);
+    $title = $attributes['title'];
+    $icon_type = $attributes['icon_type'];
+    
+    // Get the current post ID
+    $post_id = get_the_ID();
+    
+    // Add error checking
+    if (!function_exists('get_field') || !function_exists('get_field_object')) {
+        return '<p>Error: ACF functions not available</p>';
+    }
+    
+    // Get the field object with error checking
+    $field = get_field_object($field_name);
+    if (!$field || !isset($field['choices']) || empty($field['choices'])) {
+        return '<p>Error: Could not find the field "' . esc_html($field_name) . '" or its choices</p>';
+    }
+    
+    // Get the selected values for this post
+    $selected_values = get_field($field_name, $post_id);
+    
+    // If nothing is selected, make sure we have an empty array to work with
+    if (!is_array($selected_values)) {
+        $selected_values = array();
+    }
+    
+    // Get all possible choices from the ACF field
+    $all_choices = $field['choices'];
+    
+    // Start building the output with a container
+    $output = '<div class="acf-checkbox-display">';
+    
+    // Add title if provided
+    if (!empty($title)) {
+        $output .= '<h3 class="checkbox-field-title">' . esc_html($title) . '</h3>';
+    }
+    
+    $output .= '<div class="checkbox-grid" style="grid-template-columns: repeat(' . $columns . ', 1fr);">';
+    
+    foreach ($all_choices as $value => $label) {
+        $is_selected = in_array($value, $selected_values);
+        $icon_class = $is_selected ? 'selected' : 'not-selected';
+        
+        // Set the icon URLs based on the icon_type parameter
+        if ($icon_type === 'sun') {
+            // For sharing_home_with field - use sun icon for selected
+            $selected_icon_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/sun-icon.png';
+            $x_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/x-icon.png';
+        } else {
+            // Default icons
+            $selected_icon_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/checkmark-icon.png';
+            $x_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/x-icon.png';
+        }
+        
+        $icon_img = $is_selected ? 
+            '<img src="' . esc_url($selected_icon_url) . '" alt="Selected" class="checkbox-icon-img">' : 
+            '<img src="' . esc_url($x_url) . '" alt="Not selected" class="checkbox-icon-img">';
+        
+        $output .= '<div class="checkbox-item ' . esc_attr($icon_class) . '">';
+        $output .= '<span class="checkbox-icon">' . $icon_img . '</span>';
+        $output .= '<span class="checkbox-label">' . esc_html($label) . '</span>';
+        $output .= '</div>';
+    }
+    
+    $output .= '</div>'; // End checkbox-grid
+    $output .= '</div>'; // End acf-checkbox-display
+
+    
+    return $output;
+}
+add_shortcode('display_checkbox_field', 'display_checkbox_field_shortcode');
+
+// Keep the original shortcode for backward compatibility
+function display_all_amenities_shortcode() {
+    return display_checkbox_field_shortcode(array('field' => 'amenities'));
+}
+add_shortcode('display_all_amenities', 'display_all_amenities_shortcode');
+
+// Add a convenience shortcode for sharing_home_with checkbox field
+function display_sharing_home_shortcode($atts) {
+    // Define default attributes
+    $attributes = shortcode_atts(
+        array(
+            'columns' => 4,         // Number of columns in grid
+        ), 
+        $atts,
+        'display_sharing_home'
+    );
+    
+    // Merge with required parameters
+    $params = array(
+        'field' => 'sharing_home_with',
+        'icon_type' => 'sun',
+        'columns' => $attributes['columns'],
+    );
+    
+    // Call the main shortcode function with combined parameters
+    return display_checkbox_field_shortcode($params);
+}
+add_shortcode('display_sharing_home', 'display_sharing_home_shortcode');
+
+
+
 /*====Modify the Divi blog module query ======*/
 
 
@@ -407,25 +604,6 @@ function add_taxonomy_term_classes($classes, $class, $post_id) {
     return $classes;
 }
 
-// Add initial CSS to hide all posts
-add_action('wp_head', 'add_initial_hiding_css');
-function add_initial_hiding_css() {
-    ?>
-    <style>
-    /* Hide all posts in these modules initially */
-    #host_module .et_pb_post,
-    #guest_module .et_pb_post {
-        display: none;
-    }
-    
-    /* These classes will be added by JS when filtering is done */
-    #host_module .et_pb_post.show-host-post,
-    #guest_module .et_pb_post.show-guest-post {
-        display: block;
-    }
-    </style>
-    <?php
-}
 
 // jQuery to show only appropriate posts
 add_action('wp_footer', 'filter_homeshare_listings');
@@ -450,6 +628,7 @@ function filter_homeshare_listings() {
     </script>
     <?php
 }
+
 
 /**
  * Remove Yoast SEO metabox from specific post types
@@ -739,7 +918,8 @@ function render_acf_image_field_shortcode($atts) {
         'label' => '',
         'required' => 'false',
         'class' => 'td-form',
-        'max_size' => '10MB'
+        'max_size' => '10MB',
+        'set_featured' => 'true' // New attribute to control featured image behavior
     ), $atts);
     
     // Bail if no field name is provided
@@ -769,6 +949,12 @@ function render_acf_image_field_shortcode($atts) {
     // Generate a unique ID for this upload field
     $unique_id = 'acf-image-' . $attributes['field_name'];
     $drop_zone_id = 'dropzone-' . $attributes['field_name'];
+    
+    // Add a hidden field to indicate this should be set as featured image
+    $featured_field = '';
+    if ($attributes['set_featured'] === 'true') {
+        $featured_field = '<input type="hidden" name="set_as_featured" value="' . esc_attr($attributes['field_name']) . '">';
+    }
     
     // Build the HTML output
     $output = '<div class="acf-image-upload-container ' . esc_attr($attributes['class']) . '-container">';
@@ -800,6 +986,9 @@ function render_acf_image_field_shortcode($atts) {
     // The actual file input (hidden, triggered by JS)
     $output .= '<input type="file" name="' . esc_attr($attributes['field_name']) . '" id="' . esc_attr($unique_id) . '" class="hidden-file-input" accept="image/*"' . $required_attr . ' style="display:none;">';
     
+    // Add the hidden field for featured image
+    $output .= $featured_field;
+    
     // File information display
     $output .= '<div class="file-info" style="display:none;">';
     $output .= '<p>Selected file: <span class="filename"></span></p>';
@@ -818,6 +1007,89 @@ function render_acf_image_field_shortcode($atts) {
     return $output;
 }
 add_shortcode('acf_image_field', 'render_acf_image_field_shortcode');
+
+/**
+ * Handle image upload, save to ACF field, and set as featured image
+ * Modified to handle any specified ACF field as featured image
+ */
+function handle_image_upload($post_id) {
+    // First, check if we have a flag to set a specific field as featured image
+    if (!empty($_POST['set_as_featured'])) {
+        $field_name = $_POST['set_as_featured'];
+        
+        // Get the image ID from the ACF field (needs to run after ACF saves the field)
+        $image_id = get_field($field_name, $post_id);
+        
+        // Debug - log to error_log if you need to check values
+        // error_log('Field name: ' . $field_name . ', Image ID: ' . print_r($image_id, true));
+        
+        // Check if we have a valid image ID
+        if (!empty($image_id)) {
+            // If the field stores an array with ID (common in ACF image fields)
+            if (is_array($image_id) && isset($image_id['ID'])) {
+                $image_id = $image_id['ID'];
+            }
+            
+            // Set as featured image
+            set_post_thumbnail($post_id, $image_id);
+        }
+    }
+    
+    // Keep the original functionality for direct file uploads
+    if (!empty($_FILES['host_featured_image']['name'])) {
+        // Include necessary files for media handling
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
+        require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/media.php');
+        
+        // Handle the upload and insert as attachment
+        $attachment_id = media_handle_upload('host_featured_image', $post_id);
+        
+        if (!is_wp_error($attachment_id)) {
+            // Save to ACF field
+            update_field('host_featured_image', $attachment_id, $post_id);
+            
+            // Set as featured image
+            set_post_thumbnail($post_id, $attachment_id);
+        }
+    }
+}
+
+/**
+ * Tell USP Pro to handle our custom file field
+ */
+function add_custom_file_field_to_usp($files) {
+    $files[] = 'host_featured_image';
+
+    // No need to register 'usp-files' as it's the default USP Pro files field
+    // but let's make sure it's working by confirming it's in the array
+    if (!in_array('usp-files', $files)) {
+        $files[] = 'usp-files';
+    }
+    return $files;
+}
+add_filter('usp_pro_filter_files', 'add_custom_file_field_to_usp');
+
+/**
+ * Make sure our handle_image_upload function runs at the right time
+ * Hooking into both ACF save post and USP Pro submission
+ */
+function acf_set_featured_image_hooks() {
+    // Hook into ACF save post action
+    add_action('acf/save_post', 'handle_image_upload', 20); // Priority 20 to run after ACF has saved fields
+    
+    // Hook into USP Pro post submission
+    add_action('usp_post_submitted', 'handle_image_upload', 20);
+    
+    // Alternative hook for USP Pro
+    add_filter('usp_update_post', function($post_data) {
+        if (isset($post_data['ID'])) {
+            handle_image_upload($post_data['ID']);
+        }
+        return $post_data;
+    }, 20);
+}
+add_action('init', 'acf_set_featured_image_hooks');
 
 
 /**
@@ -954,12 +1226,11 @@ function custom_usp_files_shortcode($atts) {
     // Extract the original shortcode attributes
     $attributes = shortcode_atts(array(
         'min' => '4',
-        'max' => '8',
+        'max' => '4',
         'types' => 'jpg,jpeg,png,gif',
         'class' => 'td-form',
         'label' => 'Upload Files',
-        'required' => 'false',
-        'data-required' => 'false',
+        'required' => 'true',
         'display' => 'multiple'
     ), $atts);
     
@@ -1272,38 +1543,6 @@ function save_acf_fields_to_post($post_id) {
 }
 add_action('usp_pro_update_post', 'save_acf_fields_to_post');
 
-/**
- * Handle image upload, save to ACF field, and set as featured image
- */
-function handle_image_upload($post_id) {
-    // Check if we have a file uploaded
-    if (!empty($_FILES['host_featured_image']['name'])) {
-        // Include necessary files for media handling
-        require_once(ABSPATH . 'wp-admin/includes/image.php');
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        require_once(ABSPATH . 'wp-admin/includes/media.php');
-        
-        // Handle the upload and insert as attachment
-        $attachment_id = media_handle_upload('host_featured_image', $post_id);
-        
-        if (!is_wp_error($attachment_id)) {
-            // Save to ACF field
-            update_field('host_featured_image', $attachment_id, $post_id);
-            
-            // Set as featured image
-            set_post_thumbnail($post_id, $attachment_id);
-        }
-    }
-}
-
-/**
- * Tell USP Pro to handle our custom file field
- */
-function add_custom_file_field_to_usp($files) {
-    $files[] = 'host_featured_image';
-    return $files;
-}
-add_filter('usp_pro_filter_files', 'add_custom_file_field_to_usp');
 
 
 /*Function to Retrieve USP Pro Gallery Images*/
@@ -1319,8 +1558,28 @@ function get_host_gallery_images($post_id = null) {
         $post_id = get_the_ID();
     }
     
-    // Get attachment IDs from USP Pro files
+    // Try the original meta key
     $usp_images = get_post_meta($post_id, 'usp-file-ids', true);
+    
+    // If empty, try alternative meta keys that USP Pro might use
+    if (empty($usp_images)) {
+        $usp_images = get_post_meta($post_id, 'usp-files', true);
+    }
+    
+    if (empty($usp_images)) {
+        $usp_images = get_post_meta($post_id, '_usp_images', true);
+    }
+    
+    if (empty($usp_images)) {
+        $usp_images = get_post_meta($post_id, 'usp_files', true);
+    }
+    
+    if (empty($usp_images)) {
+        $usp_images = get_post_meta($post_id, 'usp_images', true);
+    }
+    
+    // Debug output - you can comment this out once working
+     echo '<p>Debug - Meta value: ' . (is_array($usp_images) ? json_encode($usp_images) : $usp_images) . '</p>';
     
     // If no images are found, return empty array
     if (empty($usp_images)) {
@@ -1336,10 +1595,16 @@ function get_host_gallery_images($post_id = null) {
     
     // Process each image
     foreach ($usp_images as $attachment_id) {
-        // Skip featured image if it's in the array
-        if (get_post_thumbnail_id($post_id) == $attachment_id) {
+        // Skip if not a valid attachment ID
+        if (!$attachment_id || !is_numeric($attachment_id)) {
             continue;
         }
+        
+        // Temporarily comment out this check to include featured image
+        // Skip featured image if it's in the array
+        // if (get_post_thumbnail_id($post_id) == $attachment_id) {
+        //     continue;
+        // }
         
         $image = wp_get_attachment_image_src($attachment_id, 'large');
         $thumbnail = wp_get_attachment_image_src($attachment_id, 'thumbnail');
@@ -1355,6 +1620,9 @@ function get_host_gallery_images($post_id = null) {
             );
         }
     }
+    
+    // Debug count - you can comment this out once working
+     echo '<p>Debug - Found ' . count($gallery_images) . ' gallery images</p>';
     
     return $gallery_images;
 }
