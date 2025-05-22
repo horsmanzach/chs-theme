@@ -8,9 +8,46 @@ function chs_assets() {
 
 }
 
+function enqueue_dynamic_image_lightbox() {
+    wp_enqueue_script(
+        'dynamic-image-lightbox',
+        get_stylesheet_directory_uri() . '/js/dynamic-image-lightbox.js',
+        array('jquery'),
+        '1.0',
+
+
+function ensure_magnific_popup() {
+    wp_enqueue_script('magnific-popup', get_site_url() . '/wp-content/themes/Divi/includes/builder/feature/dynamic-assets/assets/js/magnific-popup.js', array('jquery'), null, true);
+    wp_enqueue_style('magnific-popup-style', get_site_url() . '/wp-content/themes/Divi/includes/builder/feature/dynamic-assets/assets/css/magnific-popup.css');
+}
+add_action('wp_enqueue_scripts', 'ensure_magnific_popup', 99);
+
+// Global debug for all USP Pro hooks
+add_action('init', function() {
+    error_log('USP Pro Debug - Init hook fired');
+    
+    // Log all POST data when form is submitted
+    if (!empty($_POST) && isset($_POST['usp-form-submitted'])) {
+        error_log('USP Form Submitted - POST data: ' . print_r($_POST, true));
+        error_log('FILES data: ' . print_r($_FILES, true));
+    }
+});
+
+// Inspect all USP errors
+add_filter('usp_errors', function($errors) {
+    error_log('USP Errors: ' . print_r($errors, true));
+    return $errors;
+}, 10, 1);
+
+// Debug file requirements
+add_filter('usp_require_files', function($require) {
+    error_log('USP Require Files: ' . ($require ? 'true' : 'false'));
+    return $require;
+}, 999);
+
 /*Enqueue USP File JS Fix*/
 
-function enqueue_usp_file_upload_fix() {
+/*function enqueue_usp_file_upload_fix() {
     // Only enqueue on pages with USP forms
     if (has_shortcode(get_the_content(), 'usp_form') || 
         has_shortcode(get_the_content(), 'custom_usp_files') || 
@@ -25,7 +62,63 @@ function enqueue_usp_file_upload_fix() {
         );
     }
 }
-add_action('wp_enqueue_scripts', 'enqueue_usp_file_upload_fix');
+add_action('wp_enqueue_scripts', 'enqueue_usp_file_upload_fix');  */
+
+/*Enqueue USP File JS Styling*/
+
+/**
+ * Enqueue script for styling USP Pro file uploads
+ */
+function styled_usp_files_script() {
+    // Only load on pages with USP forms
+    if (has_shortcode(get_the_content(), 'usp_form')) {
+        wp_enqueue_script(
+            'styled-usp-files',
+            get_stylesheet_directory_uri() . '/js/styled-usp-files.js',
+            array('jquery'),
+            '1.0',
+            true
+        );
+    }
+}
+add_action('wp_enqueue_scripts', 'styled_usp_files_script');
+
+
+/**
+ * Fix USP Pro file validation for exactly 4 files
+ */
+function fix_usp_files_validation($errors, $form_data) {
+    // Track file count
+    $file_count = 0;
+    
+    // Count valid files in the submission
+    if (isset($_FILES['usp-files']) && isset($_FILES['usp-files']['name'])) {
+        foreach ($_FILES['usp-files']['name'] as $key => $filename) {
+            if (!empty($filename) && $_FILES['usp-files']['error'][$key] === 0) {
+                $file_count++;
+            }
+        }
+    }
+    
+    // If not enough files, add a custom error
+    if ($file_count < 4) {
+        $errors['usp_files'] = 'Please upload exactly 4 image files.';
+    } else {
+        // If we have enough files, remove any file-related errors
+        foreach ($errors as $key => $error) {
+            if (strpos($key, 'usp-files') !== false || $key === 'usp_files') {
+                unset($errors[$key]);
+            }
+        }
+    }
+    
+    return $errors;
+}
+add_filter('usp_pro_pre_process_form', 'fix_usp_files_validation', 999, 2);
+
+// Always return true for file validation
+add_filter('usp_pro_check_files', '__return_true', 999);
+
 
 // Debug USP Pro validation process
 function debug_usp_validation($errors, $form_data) {
@@ -132,7 +225,7 @@ function display_checkbox_field_shortcode($atts) {
     // Define default attributes
     $attributes = shortcode_atts(
         array(
-            'field' => 'amenities',     // Default field name
+            'field' => 'represents_you',     // Default field name
             'title' => '',              // Optional title
             'columns' => 4,             // Number of columns in grid
             'icon_type' => 'default',   // Icon type: 'default' or 'sun'
@@ -164,9 +257,9 @@ function display_checkbox_field_shortcode($atts) {
     // Get the selected values for this post
     $selected_values = get_field($field_name, $post_id);
     
-    // If nothing is selected, make sure we have an empty array to work with
-    if (!is_array($selected_values)) {
-        $selected_values = array();
+    // If nothing is selected, return empty for display_checkbox_field
+    if (!is_array($selected_values) || empty($selected_values)) {
+        return '<p>No selections for ' . esc_html($field['label']) . '</p>';
     }
     
     // Get all possible choices from the ACF field
@@ -182,17 +275,121 @@ function display_checkbox_field_shortcode($atts) {
     
     $output .= '<div class="checkbox-grid" style="grid-template-columns: repeat(' . $columns . ', 1fr);">';
     
-    foreach ($all_choices as $value => $label) {
-        $is_selected = in_array($value, $selected_values);
-        $icon_class = $is_selected ? 'selected' : 'not-selected';
+    // Only display selected items
+    foreach ($selected_values as $value) {
+        // Skip if the value doesn't exist in choices
+        if (!isset($all_choices[$value])) {
+            continue;
+        }
+        
+        $label = $all_choices[$value];
         
         // Set the icon URLs based on the icon_type parameter
         if ($icon_type === 'sun') {
-            // For sharing_home_with field - use sun icon for selected
+            $selected_icon_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/sun-icon.png';
+        } else {
+            $selected_icon_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/checkmark-icon.png';
+        }
+        
+        $output .= '<div class="checkbox-item selected">';
+        $output .= '<span class="checkbox-icon"><img src="' . esc_url($selected_icon_url) . '" alt="Selected" class="checkbox-icon-img"></span>';
+        $output .= '<span class="checkbox-label">' . esc_html($label) . '</span>';
+        $output .= '</div>';
+    }
+    
+    $output .= '</div>'; // End checkbox-grid
+    $output .= '</div>'; // End acf-checkbox-display
+    
+    return $output;
+}
+add_shortcode('display_checkbox_field', 'display_checkbox_field_shortcode');
+
+// Original Amenities function to display all amenities (both selected and unselected)
+function display_all_amenities_shortcode($atts = array()) {
+    // Allow field parameter to be passed for flexibility
+    $attributes = shortcode_atts(
+        array(
+            'field' => 'amenities',  // Default to amenities but can be overridden
+            'title' => '',
+            'columns' => 4,
+            'icon_type' => 'default',
+        ), 
+        $atts,
+        'display_all_amenities'
+    );
+    
+    // Call the main function with these attributes
+    return display_checkbox_field_with_all_options($attributes);
+}
+add_shortcode('display_all_amenities', 'display_all_amenities_shortcode');
+
+// Add specific shortcode for guest_tasks
+function display_all_guest_tasks_shortcode($atts = array()) {
+    // Merge passed attributes with defaults
+    $attributes = shortcode_atts(
+        array(
+            'columns' => 4,
+            'title' => '',
+            'icon_type' => 'default',
+        ), 
+        $atts,
+        'display_all_guest_tasks'
+    );
+    
+    // Force field to be guest_tasks
+    $attributes['field'] = 'guest_tasks';
+    
+    // Call the shared function
+    return display_checkbox_field_with_all_options($attributes);
+}
+add_shortcode('display_all_guest_tasks', 'display_all_guest_tasks_shortcode');
+
+// The core function that displays all options for a checkbox field
+function display_checkbox_field_with_all_options($attributes) {
+    // Get the field name from attributes
+    $field_name = $attributes['field'];
+    $columns = intval($attributes['columns']);
+    $title = $attributes['title'];
+    $icon_type = $attributes['icon_type'];
+    
+    // Get current post ID
+    $post_id = get_the_ID();
+    
+    // Error checking
+    if (!function_exists('get_field') || !function_exists('get_field_object')) {
+        return '<p>Error: ACF functions not available</p>';
+    }
+    
+    // Get field object
+    $field = get_field_object($field_name);
+    if (!$field || !isset($field['choices']) || empty($field['choices'])) {
+        return '<p>Error: Could not find the field "' . esc_html($field_name) . '" or its choices</p>';
+    }
+    
+    // Get selected values
+    $selected_values = get_field($field_name, $post_id);
+    if (!is_array($selected_values)) {
+        $selected_values = array();
+    }
+    
+    // Build the output
+    $output = '<div class="acf-checkbox-display">';
+    
+    if (!empty($title)) {
+        $output .= '<h3 class="checkbox-field-title">' . esc_html($title) . '</h3>';
+    }
+    
+    $output .= '<div class="checkbox-grid" style="grid-template-columns: repeat(' . $columns . ', 1fr);">';
+    
+    foreach ($field['choices'] as $value => $label) {
+        $is_selected = in_array($value, $selected_values);
+        $icon_class = $is_selected ? 'selected' : 'not-selected';
+        
+        // Set icons based on type
+        if ($icon_type === 'sun') {
             $selected_icon_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/sun-icon.png';
             $x_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/x-icon.png';
         } else {
-            // Default icons
             $selected_icon_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/checkmark-icon.png';
             $x_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/x-icon.png';
         }
@@ -209,17 +406,10 @@ function display_checkbox_field_shortcode($atts) {
     
     $output .= '</div>'; // End checkbox-grid
     $output .= '</div>'; // End acf-checkbox-display
-
     
     return $output;
 }
-add_shortcode('display_checkbox_field', 'display_checkbox_field_shortcode');
 
-// Keep the original shortcode for backward compatibility
-function display_all_amenities_shortcode() {
-    return display_checkbox_field_shortcode(array('field' => 'amenities'));
-}
-add_shortcode('display_all_amenities', 'display_all_amenities_shortcode');
 
 // Add a convenience shortcode for sharing_home_with checkbox field
 function display_sharing_home_shortcode($atts) {
@@ -667,7 +857,7 @@ function filter_homeshare_listings() {
     });
     </script>
     <?php
-}
+} 
 
 
 /**
@@ -819,6 +1009,111 @@ function render_acf_checkbox_field_shortcode($atts) {
     return $output;
 }
 add_shortcode('acf_checkbox_field', 'render_acf_checkbox_field_shortcode');
+
+/*====Save ACF Checkkboxes====*/
+
+/**
+ * Process ACF checkbox fields after USP Pro form submission
+ */
+function process_acf_checkbox_fields_after_submission($post_data) {
+    // Get the actual post ID from the parameter (which might be an array)
+    $post_id = null;
+    
+    if (is_array($post_data) && isset($post_data['ID'])) {
+        // If post_data is an array with an ID key
+        $post_id = $post_data['ID'];
+    } elseif (is_numeric($post_data)) {
+        // If post_data is already a numeric ID
+        $post_id = $post_data;
+    } else {
+        // Log error if we can't determine the post ID
+        error_log('Unable to determine post ID from: ' . print_r($post_data, true));
+        return;
+    }
+    
+    // Log the determined post ID
+    error_log('Processing ACF checkbox fields for post ID: ' . $post_id);
+    
+    // Process all potential ACF fields in the submission
+    foreach ($_POST as $key => $value) {
+        // Skip non-field items and system fields
+        if (in_array($key, array('usp-nonce', 'usp-captcha', 'submit', 'submitted'))) {
+            continue;
+        }
+        
+        // Also check for direct checkbox fields (if value is an array)
+        if (is_array($value)) {
+            // Try to get field info using ACF function
+            $field_obj = null;
+            if (function_exists('get_field_object')) {
+                $field_obj = get_field_object($key, $post_id);
+            }
+            
+            // Log what we're updating
+            error_log('Updating field: ' . $key . ' with values: ' . print_r($value, true));
+            
+            // Try direct update first
+            $result = update_post_meta($post_id, $key, $value);
+            error_log('Direct update_post_meta result: ' . ($result ? 'success' : 'failure'));
+            
+            // Also try ACF's format
+            $result2 = update_post_meta($post_id, '_' . $key, $value);
+            error_log('ACF prefix update_post_meta result: ' . ($result2 ? 'success' : 'failure'));
+            
+            // Also try serializing manually
+            $serialized = maybe_serialize($value);
+            $result3 = update_post_meta($post_id, $key, $serialized);
+            error_log('Serialized update_post_meta result: ' . ($result3 ? 'success' : 'failure'));
+            
+            // Try ACF's update_field if available
+            if (function_exists('update_field')) {
+                $result4 = update_field($key, $value, $post_id);
+                error_log('ACF update_field result: ' . ($result4 ? 'success' : 'failure'));
+            }
+        }
+    }
+}
+add_action('usp_submit_post_after', 'process_acf_checkbox_fields_after_submission', 10, 1);
+
+/**
+ * Second attempt to update ACF fields after post is fully saved using a default Wordpress hook - save_post
+ */
+
+function final_acf_checkbox_fields_update($post_id, $post, $update) {
+    // Skip auto-saves and revisions
+    if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id) || empty($_POST)) {
+        return;
+    }
+    
+    // Check if this is the right post type
+    $target_post_type = 'homeshare-listings'; // Change this to your actual post type
+    if ($post->post_type !== $target_post_type) {
+        return;
+    }
+    
+    error_log('Final checkbox update for post ID: ' . $post_id);
+    
+    // Process checkbox fields
+    foreach ($_POST as $key => $value) {
+        if (is_array($value)) {
+            // Get field object
+            if (function_exists('get_field_object')) {
+                $field_obj = get_field_object($key, $post_id);
+                
+                if ($field_obj && $field_obj['type'] === 'checkbox') {
+                    error_log('Final update for checkbox field: ' . $key . ' with values: ' . print_r($value, true));
+                    
+                    // Use direct meta value update with serialization
+                    delete_post_meta($post_id, $key); // Clear previous values
+                    add_post_meta($post_id, $key, $value);
+                }
+            }
+        }
+    }
+}
+add_action('save_post', 'final_acf_checkbox_fields_update', 99, 3);
+
+
 
 /*=====Create Radio ACF Field========*/
 
@@ -1101,11 +1396,6 @@ function handle_image_upload($post_id) {
 function add_custom_file_field_to_usp($files) {
     $files[] = 'host_featured_image';
 
-    // No need to register 'usp-files' as it's the default USP Pro files field
-    // but let's make sure it's working by confirming it's in the array
-    if (!in_array('usp-files', $files)) {
-        $files[] = 'usp-files';
-    }
     return $files;
 }
 add_filter('usp_pro_filter_files', 'add_custom_file_field_to_usp');
@@ -1396,43 +1686,6 @@ add_filter('usp_pro_check_files', 'usp_skip_file_validation', 5, 2);
 
 /*--------End of Custom File Uploads-----*/
 
-/*Save ACF Checkboxes to post*/
-
-function save_acf_fields_to_post($post_id) {
-    // Get all ACF field groups
-    $field_groups = acf_get_field_groups();
-    
-    foreach ($field_groups as $field_group) {
-        // Get fields in this group
-        $fields = acf_get_fields($field_group);
-        
-        if (!$fields) continue;
-        
-        foreach ($fields as $field) {
-            // Process checkbox fields (array values)
-            if ($field['type'] === 'checkbox' && isset($_POST[$field['name']]) && is_array($_POST[$field['name']])) {
-                update_field($field['name'], $_POST[$field['name']], $post_id);
-            }
-            // Process select fields (single value)
-            elseif ($field['type'] === 'select' && isset($_POST[$field['name']])) {
-                // Handle both single and multiple select fields
-                if (is_array($_POST[$field['name']])) {
-                    update_field($field['name'], $_POST[$field['name']], $post_id);
-                } else {
-                    update_field($field['name'], sanitize_text_field($_POST[$field['name']]), $post_id);
-                }
-            }
-            // Other field types would be handled here
-        }
-    }
-    
-    // Handle image upload for host_featured_image field
-    // This needs to happen outside the loop since it's coming from FILES not POST
-    handle_image_upload($post_id);
-}
-add_action('usp_pro_update_post', 'save_acf_fields_to_post');
-
-
 
 /*Function to Retrieve USP Pro Gallery Images*/
 
@@ -1468,7 +1721,7 @@ function get_host_gallery_images($post_id = null) {
     }
     
     // Debug output - you can comment this out once working
-     echo '<p>Debug - Meta value: ' . (is_array($usp_images) ? json_encode($usp_images) : $usp_images) . '</p>';
+     /*echo '<p>Debug - Meta value: ' . (is_array($usp_images) ? json_encode($usp_images) : $usp_images) . '</p>';*/
     
     // If no images are found, return empty array
     if (empty($usp_images)) {
