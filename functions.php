@@ -14,6 +14,429 @@ function enqueue_dynamic_image_lightbox() {
         get_stylesheet_directory_uri() . '/js/dynamic-image-lightbox.js',
         array('jquery'),
         '1.0',
+        true
+    );
+}
+add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
+
+/**
+ * Custom success message for homeshare-listings post type
+ */
+function custom_homeshare_success_message($message, $data) {
+    // Check if this form is creating a homeshare-listings post
+    $post_type = isset($_POST['usp_post_type']) ? $_POST['usp_post_type'] : 'post';
+    
+    // Alternative check: if you're setting post type via hidden field
+    if (isset($_POST['custom_post_type'])) {
+        $post_type = $_POST['custom_post_type'];
+    }
+    
+    // Alternative check: if you're using a form identifier
+    if (isset($_POST['form_type']) && $_POST['form_type'] === 'homeshare_application') {
+        $post_type = 'homeshare-listings';
+    }
+    
+    // Custom success message for homeshare-listings
+    if ($post_type === 'homeshare-listings') {
+        $success_message = '<div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);" class="homeshare-success">';
+        $success_message .= '<h2 style="color: #9db86e; margin-bottom: 20px; font-size: 24px; font-weight: 700;">Thank You!</h2>';
+        $success_message .= '<p style="margin-bottom: 15px; font-size: 18px;">Your application has been submitted.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 18px;">We will contact you if you have been successfully matched.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 14px;">If you have any questions, you can email us at <a href="mailto:info@cortescommunityhousing.org" style="color: #444; font-weight: 700;">info@cortescommunityhousing.org</a></p>';
+        $success_message .= '<p><a href="/main-listings/" style="color: #9db86e; text-decoration: none; font-weight: 700; font-size: 14px;" class="homeshare-link">Return to HomeShare Listings >></a></p>';
+        $success_message .= '</div>';
+        
+        return $success_message;
+    }
+    
+    // Return original message for other post types
+    return $message;
+}
+add_filter('usp_success_message', 'custom_homeshare_success_message', 10, 2);
+
+/**
+ * Alternative version if you want to detect by form fields or URL
+ */
+function custom_homeshare_success_message_advanced($message, $data) {
+    // Method 1: Check if we're on a homeshare-listings page or form
+    if (isset($_POST['form_type']) && $_POST['form_type'] === 'interested_in') {
+        // This is an "interested in" inquiry form
+        $current_page_title = isset($_POST['current_page_title']) ? $_POST['current_page_title'] : 'the listing';
+        
+        $success_message = '<div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">';
+        $success_message .= '<h2 style="color: #8BBB7A; margin-bottom: 20px;">Thank You!</h2>';
+        $success_message .= '<p style="margin-bottom: 15px; font-size: 16px;">Your inquiry about <strong>' . esc_html($current_page_title) . '</strong> has been submitted.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 16px;">We will contact you if you have been successfully matched.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 14px;">If you have any questions, you can email us at <a href="mailto:info@cortescommunityhousing.org" style="color: #8BBB7A;">info@cortescommunityhousing.org</a></p>';
+        $success_message .= '<p><a href="/homeshare-listings/" style="color: #8BBB7A; text-decoration: none;">Return to HomeShare Listings >></a></p>';
+        $success_message .= '</div>';
+        
+        return $success_message;
+    }
+    
+    // Method 2: Check if post type is being set to homeshare-listings
+    if (isset($_POST['usp_post_type']) && $_POST['usp_post_type'] === 'homeshare-listings') {
+        $success_message = '<div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">';
+        $success_message .= '<h2 style="color: #8BBB7A; margin-bottom: 20px;">Thank You!</h2>';
+        $success_message .= '<p style="margin-bottom: 15px; font-size: 16px;">Your application has been submitted.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 16px;">We will contact you if you have been successfully matched.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 14px;">If you have any questions, you can email us at <a href="mailto:info@cortescommunityhousing.org" style="color: #8BBB7A;">info@cortescommunityhousing.org</a></p>';
+        $success_message .= '<p><a href="/homeshare-listings/" style="color: #8BBB7A; text-decoration: none;">Return to HomeShare Listings >></a></p>';
+        $success_message .= '</div>';
+        
+        return $success_message;
+    }
+    
+    // Method 3: Check by form fields that only exist in homeshare forms
+    if (isset($_POST['housing_arrangements']) || isset($_POST['which_region']) || isset($_POST['term_of_lease'])) {
+        $success_message = '<div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">';
+        $success_message .= '<h2 style="color: #8BBB7A; margin-bottom: 20px;">Thank You!</h2>';
+        $success_message .= '<p style="margin-bottom: 15px; font-size: 16px;">Your application has been submitted.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 16px;">We will contact you if you have been successfully matched.</p>';
+        $success_message .= '<p style="margin-bottom: 20px; font-size: 14px;">If you have any questions, you can email us at <a href="mailto:info@cortescommunityhousing.org" style="color: #8BBB7A;">info@cortescommunityhousing.org</a></p>';
+        $success_message .= '<p><a href="/homeshare-listings/" style="color: #8BBB7A; text-decoration: none;">Return to HomeShare Listings >></a></p>';
+        $success_message .= '</div>';
+        
+        return $success_message;
+    }
+    
+    // Return original message for other forms
+    return $message;
+}
+
+// Use this version if the first one doesn't work
+// add_filter('usp_success_message', 'custom_homeshare_success_message_advanced', 10, 2);
+
+/**
+ * If you need to add a hidden field to identify homeshare forms
+ */
+/*function homeshare_form_identifier_shortcode() {
+    return '<input type="hidden" name="form_type" value="homeshare_application">';
+}
+add_shortcode('homeshare_form_id', 'homeshare_form_identifier_shortcode');*/
+
+/**
+ * Complete USP Pro Dynamic Title System with Email Alert Support
+ * This version works with [usp_email_alert] shortcodes in forms
+ */
+
+// Shortcode to create the current post title
+function usp_current_post_title_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'prefix' => '',
+        'suffix' => '',
+        'default' => 'Listing Inquiry'
+    ), $atts);
+    
+    $current_title = get_the_title();
+    
+    if (empty($current_title)) {
+        $current_title = $atts['default'];
+    }
+    
+    return $atts['prefix'] . $current_title . $atts['suffix'];
+}
+add_shortcode('current_post_title', 'usp_current_post_title_shortcode');
+
+// Shortcode to create a hidden field with dynamic post title
+function usp_dynamic_title_field_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'prefix' => 'Interested in Host: ',
+        'suffix' => '',
+        'name' => 'dynamic_post_title'
+    ), $atts);
+    
+    $current_title = get_the_title();
+    if (empty($current_title)) {
+        $current_title = 'Listing';
+    }
+    
+    $full_title = $atts['prefix'] . $current_title . $atts['suffix'];
+    
+    return '<input type="hidden" name="' . esc_attr($atts['name']) . '" value="' . esc_attr($full_title) . '">';
+}
+add_shortcode('usp_dynamic_title', 'usp_dynamic_title_field_shortcode');
+
+// Hook to set the post title after USP Pro processes the form
+function set_dynamic_post_title_from_form($post_id) {
+    // Check if this form submission has our dynamic title field
+    if (isset($_POST['dynamic_post_title']) && !empty($_POST['dynamic_post_title'])) {
+        $dynamic_title = sanitize_text_field($_POST['dynamic_post_title']);
+        
+        // Update the post title
+        wp_update_post(array(
+            'ID' => $post_id,
+            'post_title' => $dynamic_title
+        ));
+    }
+    
+    // Alternative: Check for specific form identifier
+    if (isset($_POST['form_type']) && $_POST['form_type'] === 'interested_in') {
+        $current_page_title = isset($_POST['current_page_title']) ? sanitize_text_field($_POST['current_page_title']) : 'Listing';
+        $new_title = 'Interested in Host: ' . $current_page_title;
+        
+        wp_update_post(array(
+            'ID' => $post_id,
+            'post_title' => $new_title
+        ));
+    }
+}
+add_action('usp_post_submitted', 'set_dynamic_post_title_from_form');
+add_action('usp_insert_after', 'set_dynamic_post_title_from_form');
+
+// Main shortcode for setting up interested forms
+function usp_interested_form_fields_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'prefix' => 'Interested in Host: '
+    ), $atts);
+    
+    $current_title = get_the_title();
+    $current_url = get_permalink();
+    
+    if (empty($current_title)) {
+        $current_title = 'Listing';
+    }
+    
+    $output = '<input type="hidden" name="form_type" value="interested_in">';
+    $output .= '<input type="hidden" name="current_page_title" value="' . esc_attr($current_title) . '">';
+    $output .= '<input type="hidden" name="current_page_url" value="' . esc_attr($current_url) . '">';
+    $output .= '<input type="hidden" name="dynamic_post_title" value="' . esc_attr($atts['prefix'] . $current_title) . '">';
+    
+    return $output;
+}
+add_shortcode('usp_interested_form_setup', 'usp_interested_form_fields_shortcode');
+
+/**
+ * Enhanced Email Alert Integration
+ * These filters work with [usp_email_alert] shortcodes
+ */
+
+// Process shortcodes in email alert content before it's sent
+function process_usp_email_alert_shortcodes($content) {
+    // First, process standard WordPress shortcodes
+    $content = do_shortcode($content);
+    
+    // Then process our custom dynamic content
+    if (strpos($content, '[current_post_title]') !== false) {
+        $current_title = '';
+        
+        // Try to get title from various sources (in order of priority)
+        if (isset($_POST['current_page_title'])) {
+            // From our hidden field (for interested forms)
+            $current_title = $_POST['current_page_title'];
+        } else if (isset($_POST['usp_title'])) {
+            // From the USP title field (for listing submissions)
+            $current_title = $_POST['usp_title'];
+        } else if (isset($_POST['dynamic_post_title'])) {
+            // From our dynamic title field
+            $current_title = $_POST['dynamic_post_title'];
+        } else if (get_the_title()) {
+            // From current page title
+            $current_title = get_the_title();
+        } else {
+            // Fallback
+            $current_title = 'Your Submission';
+        }
+        
+        $content = str_replace('[current_post_title]', $current_title, $content);
+    }
+    
+    return $content;
+}
+
+// Hook into USP Pro's email processing for email alerts
+add_filter('usp_email_alert_message', 'process_usp_email_alert_shortcodes', 10, 1);
+add_filter('usp_email_alert_subject', 'process_usp_email_alert_shortcodes', 10, 1);
+
+// Alternative hooks if the above don't work
+add_filter('usp_email_message', 'process_usp_email_alert_shortcodes', 10, 1);
+add_filter('usp_email_subject', 'process_usp_email_alert_shortcodes', 10, 1);
+
+// Process content before any email is sent (catch-all)
+function usp_process_all_email_content($content, $data = null) {
+    return process_usp_email_alert_shortcodes($content);
+}
+add_filter('usp_email_content', 'usp_process_all_email_content', 10, 2);
+
+/**
+ * Admin Email Filters (for emails to site admin)
+ * These handle the admin notification emails
+ */
+
+// Filter admin email subject to include dynamic content
+function usp_admin_email_subject_filter($subject, $data) {
+    // Process shortcodes in subject
+    $subject = process_usp_email_alert_shortcodes($subject);
+    
+    // For interested forms, create specific admin subject
+    if (isset($_POST['form_type']) && $_POST['form_type'] === 'interested_in') {
+        $current_page_title = isset($_POST['current_page_title']) ? $_POST['current_page_title'] : 'Listing';
+        
+        // Override subject for admin notification
+        if (strpos($subject, 'New inquiry') === false) {
+            $subject = 'New inquiry about: ' . $current_page_title;
+        }
+    }
+    
+    return $subject;
+}
+add_filter('usp_admin_email_subject', 'usp_admin_email_subject_filter', 10, 2);
+
+// Filter admin email content to include dynamic content
+function usp_admin_email_content_filter($message, $data) {
+    // Process shortcodes first
+    $message = process_usp_email_alert_shortcodes($message);
+    
+    // For interested forms, add context to admin email
+    if (isset($_POST['form_type']) && $_POST['form_type'] === 'interested_in') {
+        $current_page_title = isset($_POST['current_page_title']) ? $_POST['current_page_title'] : 'Listing';
+        $listing_url = isset($_POST['current_page_url']) ? $_POST['current_page_url'] : '';
+        
+        // Add context at the beginning of admin email
+        $context = "=== NEW INQUIRY RECEIVED ===\n";
+        $context .= "Inquiry about: " . $current_page_title . "\n";
+        if (!empty($listing_url)) {
+            $context .= "Listing URL: " . $listing_url . "\n";
+        }
+        $context .= "Submitted: " . date('Y-m-d H:i:s') . "\n";
+        $context .= "\n--- Inquiry Details ---\n\n";
+        
+        $message = $context . $message;
+    }
+    
+    return $message;
+}
+add_filter('usp_admin_email_message', 'usp_admin_email_content_filter', 10, 2);
+
+/**
+ * Success Message Filter
+ */
+function usp_dynamic_success_message_filter($message, $data) {
+    // For interested forms
+    if (isset($_POST['form_type']) && $_POST['form_type'] === 'interested_in') {
+        $current_page_title = isset($_POST['current_page_title']) ? $_POST['current_page_title'] : 'the listing';
+        
+        return "Thank you for your inquiry about: " . $current_page_title . ". We will get back to you soon!";
+    }
+    
+    // For other forms, process any shortcodes
+    return process_usp_email_alert_shortcodes($message);
+}
+add_filter('usp_success_message', 'usp_dynamic_success_message_filter', 10, 2);
+
+/**
+ * Custom shortcode specifically for email contexts
+ * Use this if [current_post_title] doesn't work in email alerts
+ */
+function usp_email_title_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'prefix' => '',
+        'suffix' => '',
+        'default' => 'Your Submission',
+        'source' => 'auto' // 'auto', 'form', 'page', 'submission'
+    ), $atts);
+    
+    $title = '';
+    
+    switch ($atts['source']) {
+        case 'form':
+            $title = isset($_POST['usp_title']) ? $_POST['usp_title'] : '';
+            break;
+        case 'page':
+            $title = get_the_title();
+            break;
+        case 'submission':
+            $title = isset($_POST['dynamic_post_title']) ? $_POST['dynamic_post_title'] : '';
+            break;
+        default: // 'auto'
+            // Try different sources in order
+            if (isset($_POST['current_page_title'])) {
+                $title = $_POST['current_page_title'];
+            } else if (isset($_POST['usp_title'])) {
+                $title = $_POST['usp_title'];
+            } else if (isset($_POST['dynamic_post_title'])) {
+                $title = $_POST['dynamic_post_title'];
+            } else if (get_the_title()) {
+                $title = get_the_title();
+            }
+            break;
+    }
+    
+    if (empty($title)) {
+        $title = $atts['default'];
+    }
+    
+    return $atts['prefix'] . $title . $atts['suffix'];
+}
+add_shortcode('email_title', 'usp_email_title_shortcode');
+
+/**
+ * Debug function (remove after testing)
+ */
+function debug_usp_email_processing($content, $data = null) {
+    error_log('USP Email Content Processing: ' . substr($content, 0, 100));
+    error_log('POST data available: ' . print_r(array_keys($_POST), true));
+    return $content;
+}
+// Uncomment for debugging:
+// add_filter('usp_email_content', 'debug_usp_email_processing', 5, 2);
+
+
+
+/**
+ * Add placeholder image for USP Pro image shortcodes when no image is uploaded
+ */
+/*function usp_pro_image_placeholder_filter($content) {
+    // Only apply on single posts with homeshare-listings post type
+    if (!is_single() || get_post_type() !== 'homeshare-listings') {
+        return $content;
+    }
+    
+    // Your placeholder image URL and ID
+    $placeholder_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/placeholder-image.png';
+    $placeholder_id = 246521;
+    
+    // Get the current post ID
+    $post_id = get_the_ID();
+    
+    // Check each image shortcode and replace with placeholder if needed
+    $image_shortcodes = array('img-2', 'img-3', 'img-4', 'img-5');
+    
+    foreach ($image_shortcodes as $shortcode) {
+        // Check if the shortcode exists in content
+        if (strpos($content, '[' . $shortcode . ']') !== false) {
+            // Get the actual image for this shortcode
+            $image_meta_key = str_replace('-', '_', $shortcode); // Convert img-2 to img_2
+            $image_id = get_post_meta($post_id, 'usp_' . $image_meta_key, true);
+            
+            // If no image ID exists, replace the shortcode with placeholder
+            if (empty($image_id)) {
+                $placeholder_img = '<img src="' . esc_url($placeholder_url) . '" alt="Placeholder Image" class="usp-placeholder-image">';
+                $content = str_replace('[' . $shortcode . ']', $placeholder_img, $content);
+            }
+        }
+    }
+    
+    return $content;
+}
+add_filter('the_content', 'usp_pro_image_placeholder_filter', 999);*/
+
+
+
+/**
+ * Set default featured image for all posts when no featured image is set
+ */
+function set_default_featured_image( $post_id ) {
+    $default_image_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/placeholder-image.png'; // Replace with the actual URL
+    if ( ! has_post_thumbnail( $post_id ) ) {
+        $image_id = attachment_url_to_postid( $default_image_url );
+        if ( $image_id ) {
+            set_post_thumbnail( $post_id, $image_id );
+        }
+    }
+}
+add_action( 'save_post', 'set_default_featured_image' );
+
 
 
 function ensure_magnific_popup() {
