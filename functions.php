@@ -20,6 +20,521 @@ function enqueue_dynamic_image_lightbox() {
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
 
 
+/**
+ * Clean USP Pro ACF Checkbox Fix - Production Ready
+ * Automatically fixes USP Pro's duplicate meta entries for ACF checkbox fields
+ */
+
+/**
+ * Global variable to store the current USP post ID
+ */
+global $current_usp_post_id;
+$current_usp_post_id = null;
+
+/**
+ * The core fix function
+ */
+function immediate_checkbox_fix($post_id) {
+    // List of checkbox fields to fix (includes both host and guest form fields)
+    $checkbox_fields = array(
+        'amenities', 
+        'subsidy_tasks', 
+        'sharing_home_with', 
+        'represents_you', 
+        'secondary_housing_arrangements',
+        'guest_secondary_rental_type',
+        'guest_tasks',
+        'guest_represents_you'
+    );
+    
+    $fixed_any = false;
+    
+    foreach ($checkbox_fields as $field_name) {
+        // Check current state of the field
+        $current_meta = get_post_meta($post_id, $field_name, false);
+        
+        // Check if we have the broken pattern (multiple entries with single values)
+        if (count($current_meta) > 1) {
+            // Get all unique values from all entries
+            $all_values = array();
+            foreach ($current_meta as $meta_entry) {
+                if (is_array($meta_entry)) {
+                    $all_values = array_merge($all_values, $meta_entry);
+                } else {
+                    $all_values[] = $meta_entry;
+                }
+            }
+            
+            // Remove duplicates and empty values
+            $unique_values = array_unique(array_filter($all_values));
+            
+            if (!empty($unique_values)) {
+                // Delete all existing entries
+                global $wpdb;
+                $wpdb->delete(
+                    $wpdb->postmeta,
+                    array(
+                        'post_id' => $post_id,
+                        'meta_key' => $field_name
+                    ),
+                    array('%d', '%s')
+                );
+                
+                // Save the consolidated data correctly
+                update_field($field_name, $unique_values, $post_id);
+                $fixed_any = true;
+            }
+        }
+    }
+    
+    return $fixed_any;
+}
+
+/**
+ * Capture post ID immediately when post is created
+ */
+add_action('wp_insert_post', function($post_id, $post, $update) {
+    // Only for new homeshare-listings posts from USP Pro
+    if ($post->post_type === 'homeshare-listings' && isset($_POST['usp-form-submitted']) && !$update) {
+        global $current_usp_post_id;
+        $current_usp_post_id = $post_id;
+        
+        // Schedule multiple fix attempts with different delays
+        wp_schedule_single_event(time() + 2, 'delayed_checkbox_fix', array($post_id, 'delay2'));
+        wp_schedule_single_event(time() + 5, 'delayed_checkbox_fix', array($post_id, 'delay5'));
+        wp_schedule_single_event(time() + 10, 'delayed_checkbox_fix', array($post_id, 'delay10'));
+    }
+}, 10, 3);
+
+/**
+ * Register the custom cron event
+ */
+add_action('delayed_checkbox_fix', function($post_id, $delay_tag = 'default') {
+    immediate_checkbox_fix($post_id);
+});
+
+/**
+ * Enhanced save_post hook
+ */
+add_action('save_post', function($post_id, $post, $update) {
+    // Only for homeshare-listings posts from USP Pro
+    if ($post->post_type !== 'homeshare-listings' || !isset($_POST['usp-form-submitted'])) {
+        return;
+    }
+    
+    if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) {
+        return;
+    }
+    
+    global $current_usp_post_id;
+    $current_usp_post_id = $post_id;
+    
+    // Add shutdown hooks with different priorities
+    add_action('shutdown', function() use ($post_id) {
+        immediate_checkbox_fix($post_id);
+    }, 1);
+    
+    add_action('shutdown', function() use ($post_id) {
+        immediate_checkbox_fix($post_id);
+    }, 999);
+    
+}, 9999, 3);
+
+/**
+ * Enhanced USP Pro hook with post ID detection and delayed execution
+ */
+add_action('usp_submit_post_after', function($post_data) {
+    // Try multiple ways to get the post ID
+    $post_id = null;
+    
+    // Method 1: Array with ID key
+    if (is_array($post_data) && isset($post_data['ID'])) {
+        $post_id = $post_data['ID'];
+    }
+    // Method 2: Direct numeric value
+    elseif (is_numeric($post_data)) {
+        $post_id = intval($post_data);
+    }
+    // Method 3: String that contains a number
+    elseif (is_string($post_data) && is_numeric($post_data)) {
+        $post_id = intval($post_data);
+    }
+    // Method 4: Array with different key structure
+    elseif (is_array($post_data)) {
+        if (isset($post_data['post_id'])) {
+            $post_id = $post_data['post_id'];
+        } elseif (isset($post_data['id'])) {
+            $post_id = $post_data['id'];
+        }
+    }
+    
+    // Method 5: Use global variable if set
+    if (!$post_id) {
+        global $current_usp_post_id;
+        if ($current_usp_post_id) {
+            $post_id = $current_usp_post_id;
+        }
+    }
+    
+    // Method 6: Get the most recent post as fallback
+    if (!$post_id) {
+        global $wpdb;
+        $post_id = $wpdb->get_var(
+            "SELECT ID FROM {$wpdb->posts} 
+             WHERE post_type = 'homeshare-listings' 
+             AND post_status IN ('publish', 'pending', 'draft')
+             ORDER BY post_date DESC 
+             LIMIT 1"
+        );
+    }
+    
+    if ($post_id && is_numeric($post_id)) {
+        // Schedule delayed fixes
+        wp_schedule_single_event(time() + 2, 'delayed_checkbox_fix', array($post_id, 'usp_hook_2sec'));
+        wp_schedule_single_event(time() + 5, 'delayed_checkbox_fix', array($post_id, 'usp_hook_5sec'));
+        wp_schedule_single_event(time() + 10, 'delayed_checkbox_fix', array($post_id, 'usp_hook_10sec'));
+        
+        // Also add a shutdown hook as backup
+        add_action('shutdown', function() use ($post_id) {
+            sleep(1);
+            immediate_checkbox_fix($post_id);
+        }, 999);
+    }
+    
+}, 999);
+
+/**
+ * Meta update hook to catch data as it's being saved
+ */
+add_action('updated_post_meta', function($meta_id, $post_id, $meta_key, $meta_value) {
+    // Only process checkbox fields from USP Pro forms (host and guest)
+    $checkbox_fields = array(
+        'amenities', 
+        'subsidy_tasks', 
+        'sharing_home_with', 
+        'represents_you', 
+        'secondary_housing_arrangements',
+        'guest_secondary_rental_type',
+        'guest_tasks',
+        'guest_represents_you'
+    );
+    
+    if (in_array($meta_key, $checkbox_fields) && isset($_POST['usp-form-submitted'])) {
+        // Store the post ID globally
+        global $current_usp_post_id;
+        $current_usp_post_id = $post_id;
+        
+        // Add a shutdown action to fix after all meta is saved
+        add_action('shutdown', function() use ($post_id) {
+            immediate_checkbox_fix($post_id);
+        }, 999);
+    }
+}, 10, 4);
+
+/**
+ * Alternative approach: Hook into ACF's save process
+ */
+add_action('acf/save_post', function($post_id) {
+    // Check if this is from USP Pro
+    if (isset($_POST['usp-form-submitted'])) {
+        // Run fix with a delay to ensure ACF has finished
+        add_action('shutdown', function() use ($post_id) {
+            immediate_checkbox_fix($post_id);
+        }, 1000);
+    }
+}, 20);
+
+/**
+ * KEEP BULK FIX FUNCTION - DO NOT REMOVE
+ * Manual bulk fix function for testing/backup
+ */
+add_action('init', function() {
+    if (isset($_GET['bulk_fix_all']) && current_user_can('manage_options')) {
+        
+        echo '<h2>Bulk Fix All Posts</h2>';
+        
+        $posts = get_posts(array(
+            'post_type' => 'homeshare-listings',
+            'numberposts' => -1,
+            'post_status' => 'any'
+        ));
+        
+        $fixed_count = 0;
+        $checked_count = 0;
+        
+        foreach ($posts as $post) {
+            $checked_count++;
+            
+            $current_meta = get_post_meta($post->ID, 'amenities', false);
+            
+            echo '<h4>Post ' . $post->ID . ' (' . $post->post_title . ')</h4>';
+            echo '<p>Meta entries found: ' . count($current_meta) . '</p>';
+            
+            // Only fix posts with duplicate entries
+            if (count($current_meta) > 1) {
+                echo '<p>Fixing multiple entries...</p>';
+                
+                // Apply the same fix logic
+                $all_values = array();
+                foreach ($current_meta as $meta_entry) {
+                    if (is_array($meta_entry)) {
+                        $all_values = array_merge($all_values, $meta_entry);
+                    } else {
+                        $all_values[] = $meta_entry;
+                    }
+                }
+                
+                $unique_values = array_unique(array_filter($all_values));
+                
+                if (!empty($unique_values)) {
+                    // Delete all existing
+                    global $wpdb;
+                    $wpdb->delete(
+                        $wpdb->postmeta,
+                        array(
+                            'post_id' => $post->ID,
+                            'meta_key' => 'amenities'
+                        ),
+                        array('%d', '%s')
+                    );
+                    
+                    // Save correctly
+                    $result = update_field('amenities', $unique_values, $post->ID);
+                    
+                    $fixed_count++;
+                    echo '<p style="color: green;">✅ Fixed with values: ' . implode(', ', $unique_values) . '</p>';
+                } else {
+                    echo '<p style="color: red;">❌ No valid values to save</p>';
+                }
+            } elseif (count($current_meta) === 1) {
+                $single_entry = $current_meta[0];
+                if (is_array($single_entry) && count($single_entry) === 1) {
+                    echo '<p style="color: orange;">⚠️ Single entry with one value: ' . $single_entry[0] . '</p>';
+                }
+            } else {
+                echo '<p>No amenities meta found</p>';
+            }
+            
+            echo '<hr>';
+        }
+        
+        echo '<h3>Summary:</h3>';
+        echo '<p>Checked: ' . $checked_count . ' posts</p>';
+        echo '<p>Fixed: ' . $fixed_count . ' posts</p>';
+        
+        wp_die();
+    }
+});
+
+
+/**
+ * Clean USP Pro Email to ACF Field Sync - Production Ready
+ * Automatically populates ACF email fields with values from usp_email shortcode
+ */
+
+/**
+ * Main function to sync USP email to ACF email fields
+ */
+function sync_usp_email_to_acf($post_id) {
+    // List of possible ACF email field names
+    $acf_email_fields = array(
+        'host_email',
+        'guest_email', 
+        'interested_host_email',
+        'interested_guest_email'
+    );
+    
+    // Get the email value from USP Pro (common meta keys USP Pro uses for email)
+    $usp_email_keys = array(
+        'usp-email',      // Most common
+        'usp_email',      // Alternative format
+        'email',          // Simple format
+        'user_email'      // Another possibility
+    );
+    
+    $email_value = null;
+    
+    // Try to find the email value from USP Pro meta
+    foreach ($usp_email_keys as $email_key) {
+        $email_value = get_post_meta($post_id, $email_key, true);
+        if (!empty($email_value) && is_email($email_value)) {
+            break; // Found a valid email
+        }
+    }
+    
+    // If no email found in meta, check if it's in the POST data
+    if (empty($email_value) && isset($_POST['usp-email'])) {
+        $email_value = sanitize_email($_POST['usp-email']);
+    }
+    
+    // If we found an email value, populate ALL ACF email fields (let ACF handle which ones exist)
+    if (!empty($email_value) && is_email($email_value)) {
+        
+        $updated_any = false;
+        
+        // Try to update each potential ACF email field
+        foreach ($acf_email_fields as $field_name) {
+            
+            // Get current value
+            $current_value = get_field($field_name, $post_id);
+            
+            // Only update if the field is empty or different
+            if ($current_value !== $email_value) {
+                
+                // Try updating with ACF's update_field function
+                $result = update_field($field_name, $email_value, $post_id);
+                
+                if ($result) {
+                    $updated_any = true;
+                }
+                
+                // Also try direct meta update as backup
+                update_post_meta($post_id, $field_name, $email_value);
+                
+                // And try with ACF's internal meta key format
+                update_post_meta($post_id, '_' . $field_name, 'field_' . $field_name);
+            }
+        }
+        
+        return $updated_any;
+    }
+    
+    return false;
+}
+
+/**
+ * Hook into post creation to sync email immediately
+ */
+add_action('wp_insert_post', function($post_id, $post, $update) {
+    // Only for homeshare-listings posts from USP Pro
+    if ($post->post_type === 'homeshare-listings' && isset($_POST['usp-form-submitted'])) {
+        
+        // Schedule delayed email sync to ensure USP Pro has saved the email data
+        wp_schedule_single_event(time() + 2, 'delayed_email_sync', array($post_id, 'delay2'));
+        wp_schedule_single_event(time() + 5, 'delayed_email_sync', array($post_id, 'delay5'));
+        
+    }
+}, 10, 3);
+
+/**
+ * Register the delayed email sync event
+ */
+add_action('delayed_email_sync', function($post_id, $delay_tag = 'default') {
+    sync_usp_email_to_acf($post_id);
+});
+
+/**
+ * Hook into save_post for additional coverage
+ */
+add_action('save_post', function($post_id, $post, $update) {
+    // Only for homeshare-listings posts from USP Pro
+    if ($post->post_type !== 'homeshare-listings' || !isset($_POST['usp-form-submitted'])) {
+        return;
+    }
+    
+    if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) {
+        return;
+    }
+    
+    // Add shutdown hook to sync email after everything is saved
+    add_action('shutdown', function() use ($post_id) {
+        sleep(1); // Brief delay to ensure USP Pro has finished
+        sync_usp_email_to_acf($post_id);
+    }, 500);
+    
+}, 9999, 3);
+
+/**
+ * Hook into USP Pro's completion
+ */
+add_action('usp_submit_post_after', function($post_data) {
+    // Get post ID using same logic as checkbox fix
+    $post_id = null;
+    
+    if (is_array($post_data) && isset($post_data['ID'])) {
+        $post_id = $post_data['ID'];
+    } elseif (is_numeric($post_data)) {
+        $post_id = intval($post_data);
+    } elseif (is_string($post_data) && is_numeric($post_data)) {
+        $post_id = intval($post_data);
+    } elseif (is_array($post_data)) {
+        if (isset($post_data['post_id'])) {
+            $post_id = $post_data['post_id'];
+        } elseif (isset($post_data['id'])) {
+            $post_id = $post_data['id'];
+        }
+    }
+    
+    // Fallback: get most recent post
+    if (!$post_id) {
+        global $wpdb;
+        $post_id = $wpdb->get_var(
+            "SELECT ID FROM {$wpdb->posts} 
+             WHERE post_type = 'homeshare-listings' 
+             AND post_status IN ('publish', 'pending', 'draft')
+             ORDER BY post_date DESC 
+             LIMIT 1"
+        );
+    }
+    
+    if ($post_id && is_numeric($post_id)) {
+        // Schedule delayed email sync
+        wp_schedule_single_event(time() + 2, 'delayed_email_sync', array($post_id, 'usp_hook'));
+        
+        // Also add shutdown hook as backup
+        add_action('shutdown', function() use ($post_id) {
+            sleep(1);
+            sync_usp_email_to_acf($post_id);
+        }, 600);
+    }
+    
+}, 999);
+
+/**
+ * Hook into meta updates to catch email when it's saved
+ */
+add_action('updated_post_meta', function($meta_id, $post_id, $meta_key, $meta_value) {
+    // Check if this is an email meta update from USP Pro
+    $email_meta_keys = array('usp-email', 'usp_email', 'email', 'user_email');
+    
+    if (in_array($meta_key, $email_meta_keys) && isset($_POST['usp-form-submitted'])) {
+        // Add shutdown action to sync after all meta is saved
+        add_action('shutdown', function() use ($post_id) {
+            sync_usp_email_to_acf($post_id);
+        }, 700);
+    }
+}, 10, 4);
+
+/**
+ * Manual email sync function for backup/testing
+ * Usage: https://yoursite.com/?sync_emails=1
+ */
+add_action('init', function() {
+    if (isset($_GET['sync_emails']) && current_user_can('manage_options')) {
+        
+        $posts = get_posts(array(
+            'post_type' => 'homeshare-listings',
+            'numberposts' => -1,
+            'post_status' => 'any'
+        ));
+        
+        $synced_count = 0;
+        
+        foreach ($posts as $post) {
+            $result = sync_usp_email_to_acf($post->ID);
+            if ($result) {
+                $synced_count++;
+            }
+        }
+        
+        echo '<h2>Email Sync Complete</h2>';
+        echo '<p>Processed: ' . count($posts) . ' posts</p>';
+        echo '<p>Synced: ' . $synced_count . ' posts</p>';
+        
+        wp_die();
+    }
+});
+
 
 
 /**
