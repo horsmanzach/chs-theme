@@ -3,9 +3,18 @@
 add_action( 'wp_enqueue_scripts', 'chs_assets' ); 
 
 function chs_assets() { 
-
-	wp_enqueue_script( 'theme-scripts', get_stylesheet_directory_uri() . '/js/chs-custom-scripts.js', array( 'jquery' ), '1.0', true );
-
+    wp_enqueue_script( 'theme-scripts', get_stylesheet_directory_uri() . '/js/chs-custom-scripts.js', array( 'jquery' ), '1.0', true );
+    
+    // USP placeholder images for homeshare listings
+    if (is_single() && get_post_type() === 'homeshare-listings') {
+        wp_enqueue_script(
+            'usp-placeholder-images',
+            get_stylesheet_directory_uri() . '/js/usp-placeholder-images.js',
+            array('jquery'),
+            '1.0',
+            true
+        );
+    }
 }
 
 function enqueue_dynamic_image_lightbox() {
@@ -18,6 +27,89 @@ function enqueue_dynamic_image_lightbox() {
     );
 }
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
+
+/**
+ * Clean and format rent field data
+ */
+
+/**
+ * Remove non-numeric characters from rent field when saving
+ */
+function clean_rent_field_on_save($value, $post_id, $field) {
+    // Only process the 'rent' field
+    if ($field['name'] !== 'rent') {
+        return $value;
+    }
+    
+    // Remove all non-numeric characters (letters, symbols, spaces, etc.)
+    $cleaned_value = preg_replace('/[^0-9]/', '', $value);
+    
+    // Return empty string if no numbers found, otherwise return the cleaned number
+    return empty($cleaned_value) ? '' : $cleaned_value;
+}
+add_filter('acf/update_value/name=rent', 'clean_rent_field_on_save', 10, 3);
+
+/**
+ * Display rent with dollar sign on frontend
+ */
+function format_rent_display($value, $post_id, $field) {
+    // Only process the 'rent' field
+    if ($field['name'] !== 'rent') {
+        return $value;
+    }
+    
+    // Only format for frontend display (not admin)
+    if (is_admin()) {
+        return $value;
+    }
+    
+    // If value is empty or zero, return empty
+    if (empty($value) || $value === '0') {
+        return '';
+    }
+    
+    // Add dollar sign and format with commas for thousands
+    return '$' . number_format((int)$value);
+}
+add_filter('acf/format_value/name=rent', 'format_rent_display', 10, 3);
+
+/**
+ * Alternative method: Create a function to get formatted rent value
+ * Use this in templates with: echo get_formatted_rent($post_id);
+ */
+function get_formatted_rent($post_id = null) {
+    if (!$post_id) {
+        $post_id = get_the_ID();
+    }
+    
+    $rent = get_field('rent', $post_id);
+    
+    if (empty($rent) || $rent === '0') {
+        return '';
+    }
+    
+    // Clean any remaining non-numeric characters and format
+    $cleaned_rent = preg_replace('/[^0-9]/', '', $rent);
+    
+    if (empty($cleaned_rent)) {
+        return '';
+    }
+    
+    return '$' . number_format((int)$cleaned_rent);
+}
+
+/**
+ * Shortcode to display formatted rent
+ * Usage: [display_rent] or [display_rent post_id="123"]
+ */
+function display_rent_shortcode($atts) {
+    $attributes = shortcode_atts(array(
+        'post_id' => get_the_ID()
+    ), $atts);
+    
+    return get_formatted_rent($attributes['post_id']);
+}
+add_shortcode('display_rent', 'display_rent_shortcode');
 
 
 /**
@@ -538,50 +630,10 @@ add_action('init', function() {
 
 
 /**
- * Add placeholder image for USP Pro image shortcodes when no image is uploaded
- */
-/*function usp_pro_image_placeholder_filter($content) {
-    // Only apply on single posts with homeshare-listings post type
-    if (!is_single() || get_post_type() !== 'homeshare-listings') {
-        return $content;
-    }
-    
-    // Your placeholder image URL and ID
-    $placeholder_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/placeholder-image.png';
-    $placeholder_id = 246521;
-    
-    // Get the current post ID
-    $post_id = get_the_ID();
-    
-    // Check each image shortcode and replace with placeholder if needed
-    $image_shortcodes = array('img-2', 'img-3', 'img-4', 'img-5');
-    
-    foreach ($image_shortcodes as $shortcode) {
-        // Check if the shortcode exists in content
-        if (strpos($content, '[' . $shortcode . ']') !== false) {
-            // Get the actual image for this shortcode
-            $image_meta_key = str_replace('-', '_', $shortcode); // Convert img-2 to img_2
-            $image_id = get_post_meta($post_id, 'usp_' . $image_meta_key, true);
-            
-            // If no image ID exists, replace the shortcode with placeholder
-            if (empty($image_id)) {
-                $placeholder_img = '<img src="' . esc_url($placeholder_url) . '" alt="Placeholder Image" class="usp-placeholder-image">';
-                $content = str_replace('[' . $shortcode . ']', $placeholder_img, $content);
-            }
-        }
-    }
-    
-    return $content;
-}
-add_filter('the_content', 'usp_pro_image_placeholder_filter', 999);*/
-
-
-
-/**
  * Set default featured image for all posts when no featured image is set
  */
-function set_default_featured_image( $post_id ) {
-    $default_image_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/05/placeholder-image.png'; // Replace with the actual URL
+ function set_default_featured_image( $post_id ) {
+    $default_image_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/06/Placeholder-better.webp'; // Replace with the actual URL
     if ( ! has_post_thumbnail( $post_id ) ) {
         $image_id = attachment_url_to_postid( $default_image_url );
         if ( $image_id ) {
@@ -589,7 +641,7 @@ function set_default_featured_image( $post_id ) {
         }
     }
 }
-add_action( 'save_post', 'set_default_featured_image' );
+add_action( 'save_post', 'set_default_featured_image' ); 
 
 
 
@@ -2346,3 +2398,4 @@ add_filter( 'login_headertitle', 'my_login_logo_url_title' );
 function my_login_logo_url_title() {
     return 'Cortes Island Housing Society';
 }
+
