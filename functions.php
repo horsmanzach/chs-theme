@@ -422,19 +422,34 @@ add_action('init', function() {
 /**
  * Clean USP Pro Email to ACF Field Sync - Production Ready
  * Automatically populates ACF email fields with values from usp_email shortcode
+ * Now supports both homeshare-listings and trades-directory post types
  */
 
 /**
  * Main function to sync USP email to ACF email fields
  */
 function sync_usp_email_to_acf($post_id) {
-    // List of possible ACF email field names
-    $acf_email_fields = array(
-        'host_email',
-        'guest_email', 
-        'interested_host_email',
-        'interested_guest_email'
-    );
+    // Get the post type for this post
+    $post_type = get_post_type($post_id);
+    
+    // Define ACF email field names based on post type
+    $acf_email_fields = array();
+    
+    if ($post_type === 'homeshare-listings') {
+        $acf_email_fields = array(
+            'host_email',
+            'guest_email', 
+            'interested_host_email',
+            'interested_guest_email'
+        );
+    } elseif ($post_type === 'trades-directory') {
+        $acf_email_fields = array(
+            'email'
+        );
+    } else {
+        // Not a supported post type
+        return false;
+    }
     
     // Get the email value from USP Pro (common meta keys USP Pro uses for email)
     $usp_email_keys = array(
@@ -498,8 +513,8 @@ function sync_usp_email_to_acf($post_id) {
  * Hook into post creation to sync email immediately
  */
 add_action('wp_insert_post', function($post_id, $post, $update) {
-    // Only for homeshare-listings posts from USP Pro
-    if ($post->post_type === 'homeshare-listings' && isset($_POST['usp-form-submitted'])) {
+    // Only for supported post types from USP Pro
+    if (($post->post_type === 'homeshare-listings' || $post->post_type === 'trades-directory') && isset($_POST['usp-form-submitted'])) {
         
         // Schedule delayed email sync to ensure USP Pro has saved the email data
         wp_schedule_single_event(time() + 2, 'delayed_email_sync', array($post_id, 'delay2'));
@@ -519,8 +534,8 @@ add_action('delayed_email_sync', function($post_id, $delay_tag = 'default') {
  * Hook into save_post for additional coverage
  */
 add_action('save_post', function($post_id, $post, $update) {
-    // Only for homeshare-listings posts from USP Pro
-    if ($post->post_type !== 'homeshare-listings' || !isset($_POST['usp-form-submitted'])) {
+    // Only for supported post types from USP Pro
+    if (($post->post_type !== 'homeshare-listings' && $post->post_type !== 'trades-directory') || !isset($_POST['usp-form-submitted'])) {
         return;
     }
     
@@ -557,12 +572,12 @@ add_action('usp_submit_post_after', function($post_data) {
         }
     }
     
-    // Fallback: get most recent post
+    // Fallback: get most recent post from either supported post type
     if (!$post_id) {
         global $wpdb;
         $post_id = $wpdb->get_var(
             "SELECT ID FROM {$wpdb->posts} 
-             WHERE post_type = 'homeshare-listings' 
+             WHERE post_type IN ('homeshare-listings', 'trades-directory')
              AND post_status IN ('publish', 'pending', 'draft')
              ORDER BY post_date DESC 
              LIMIT 1"
@@ -590,12 +605,33 @@ add_action('updated_post_meta', function($meta_id, $post_id, $meta_key, $meta_va
     $email_meta_keys = array('usp-email', 'usp_email', 'email', 'user_email');
     
     if (in_array($meta_key, $email_meta_keys) && isset($_POST['usp-form-submitted'])) {
-        // Add shutdown action to sync after all meta is saved
-        add_action('shutdown', function() use ($post_id) {
-            sync_usp_email_to_acf($post_id);
-        }, 700);
+        // Check if this is a supported post type
+        $post_type = get_post_type($post_id);
+        if ($post_type === 'homeshare-listings' || $post_type === 'trades-directory') {
+            // Add shutdown action to sync after all meta is saved
+            add_action('shutdown', function() use ($post_id) {
+                sync_usp_email_to_acf($post_id);
+            }, 700);
+        }
     }
 }, 10, 4);
+
+/**
+ * Alternative approach: Hook into ACF's save process
+ */
+add_action('acf/save_post', function($post_id) {
+    // Check if this is from USP Pro
+    if (isset($_POST['usp-form-submitted'])) {
+        // Check if this is a supported post type
+        $post_type = get_post_type($post_id);
+        if ($post_type === 'homeshare-listings' || $post_type === 'trades-directory') {
+            // Run fix with a delay to ensure ACF has finished
+            add_action('shutdown', function() use ($post_id) {
+                sync_usp_email_to_acf($post_id);
+            }, 1000);
+        }
+    }
+}, 20);
 
 /**
  * Manual email sync function for backup/testing
@@ -605,7 +641,7 @@ add_action('init', function() {
     if (isset($_GET['sync_emails']) && current_user_can('manage_options')) {
         
         $posts = get_posts(array(
-            'post_type' => 'homeshare-listings',
+            'post_type' => array('homeshare-listings', 'trades-directory'),
             'numberposts' => -1,
             'post_status' => 'any'
         ));
