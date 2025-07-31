@@ -28,6 +28,31 @@ function enqueue_dynamic_image_lightbox() {
 }
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
 
+/**
+ * SAFE Resource Category Filter - PHP Only
+ * Adds taxonomy term classes to Resource posts for CSS filtering
+ * No AJAX, No loops, No server stress
+ */
+
+// Add taxonomy classes to Resource posts only
+function add_resource_taxonomy_classes_safe($classes, $class, $post_id) {
+    // Only run for Resources post type
+    if (get_post_type($post_id) === 'housing-policy') {
+        // Get terms from the resource-categories taxonomy
+        $terms = get_the_terms($post_id, 'resource-categories');
+        
+        if (!empty($terms) && !is_wp_error($terms)) {
+            foreach ($terms as $term) {
+                // Add class with 'resource-term-' prefix to avoid conflicts
+                $classes[] = 'resource-term-' . $term->slug;
+            }
+        }
+    }
+    return $classes;
+}
+add_filter('post_class', 'add_resource_taxonomy_classes_safe', 10, 3);
+
+
 
 /**
  * PRODUCTION CODE: Approval Email Fix for USP Pro
