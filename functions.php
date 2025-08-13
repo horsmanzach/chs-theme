@@ -17,7 +17,7 @@ function chs_assets() {
     }
 }
 
-function enqueue_dynamic_image_lightbox() {
+function enqueue_dynamic_image_lightbox() {ode
     wp_enqueue_script(
         'dynamic-image-lightbox',
         get_stylesheet_directory_uri() . '/js/dynamic-image-lightbox.js',
@@ -27,6 +27,110 @@ function enqueue_dynamic_image_lightbox() {
     );
 }
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
+
+/**
+ * CWM Announcements Relative Time Display
+ * Shows "X hours ago", "X days ago", or "X months ago" instead of regular dates
+ */
+
+/**
+ * Enqueue script for CWM announcements relative time
+ */
+function enqueue_cwm_announcements_script() {
+    // Only load on pages that might have cwm-announcements
+    global $post;
+    if (is_a($post, 'WP_Post') && (has_shortcode($post->post_content, 'et_pb_blog') || is_post_type_archive('cwm-announcements'))) {
+        wp_enqueue_script(
+            'cwm-announcements-relative-time',
+            get_stylesheet_directory_uri() . '/js/cwm-announcements-relative-time.js',
+            array('jquery'),
+            '1.0',
+            true
+        );
+        
+        // Get all cwm-announcements posts and their dates
+        $posts = get_posts(array(
+            'post_type' => 'cwm-announcements',
+            'numberposts' => -1,
+            'post_status' => 'publish'
+        ));
+        
+        $post_dates = array();
+        foreach ($posts as $announcement_post) {
+            $post_dates[$announcement_post->ID] = get_the_date('c', $announcement_post); // ISO 8601 format for JavaScript
+        }
+        
+        // Localize the script with post data
+        wp_localize_script('cwm-announcements-relative-time', 'cwmAnnouncementData', array(
+            'postDates' => $post_dates,
+            'currentTime' => current_time('c') // ISO 8601 format
+        ));
+    }
+}
+add_action('wp_enqueue_scripts', 'enqueue_cwm_announcements_script');
+
+/**
+ * Enqueue script for CWM Members join date formatting
+ */
+function enqueue_cwm_members_script() {
+    // Only load on pages that might have cwm-members
+    global $post;
+    if (is_a($post, 'WP_Post') && (has_shortcode($post->post_content, 'et_pb_blog') || is_post_type_archive('cwm-members'))) {
+        wp_enqueue_script(
+            'cwm-members-join-date',
+            get_stylesheet_directory_uri() . '/js/cwm-members-join-date.js',
+            array('jquery'),
+            '1.0',
+            true
+        );
+        
+        // Get all cwm-members posts and their dates
+        $posts = get_posts(array(
+            'post_type' => 'cwm-members',
+            'numberposts' => -1,
+            'post_status' => 'publish'
+        ));
+        
+        $post_dates = array();
+        foreach ($posts as $member_post) {
+            $post_dates[$member_post->ID] = get_the_date('c', $member_post); // ISO 8601 format for JavaScript
+        }
+        
+        // Localize the script with post data
+        wp_localize_script('cwm-members-join-date', 'cwmMemberData', array(
+            'postDates' => $post_dates,
+            'debug' => false // Set to true for debugging
+        ));
+    }
+}
+add_action('wp_enqueue_scripts', 'enqueue_cwm_members_script');
+
+
+/*CWM Member Count as a Shortcode*/
+
+/**
+ * Simple Active Members Count Shortcode
+ * Displays the total number of published cwm-members posts
+ * 
+ * Usage: [active_members]
+ * Output: "8 active members" or "1 active member"
+ */
+
+function cwm_active_members_shortcode() {
+    // Count published cwm-members posts
+    $member_count = wp_count_posts('cwm-members');
+    $published_count = isset($member_count->publish) ? intval($member_count->publish) : 0;
+    
+    // Handle singular vs plural
+    if ($published_count === 1) {
+        $output = '1 active member';
+    } else {
+        $output = $published_count . ' active members';
+    }
+    
+    return $output;
+}
+add_shortcode('active_members', 'cwm_active_members_shortcode');
 
 /**
  * SAFE Resource Category Filter - PHP Only
