@@ -17,7 +17,7 @@ function chs_assets() {
     }
 }
 
-function enqueue_dynamic_image_lightbox() {ode
+function enqueue_dynamic_image_lightbox() {
     wp_enqueue_script(
         'dynamic-image-lightbox',
         get_stylesheet_directory_uri() . '/js/dynamic-image-lightbox.js',
@@ -27,6 +27,19 @@ function enqueue_dynamic_image_lightbox() {ode
     );
 }
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
+
+
+/*===========Enqueue load-more.js file===========*/
+function enqueue_load_more() {
+    wp_enqueue_script(
+        'load-more',
+        get_stylesheet_directory_uri() . '/js/load-more.js',
+        array('jquery'),
+        '1.0',
+        true
+    );
+}
+add_action('wp_enqueue_scripts', 'enqueue_load_more');
 
 /**
  * CWM Announcements Relative Time Display
