@@ -28,19 +28,6 @@ function enqueue_dynamic_image_lightbox() {
 }
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
 
-
-/*===========Enqueue load-more.js file===========*/
-function enqueue_load_more() {
-    wp_enqueue_script(
-        'load-more',
-        get_stylesheet_directory_uri() . '/js/load-more.js',
-        array('jquery'),
-        '1.0',
-        true
-    );
-}
-add_action('wp_enqueue_scripts', 'enqueue_load_more');
-
 /**
  * CWM Announcements Relative Time Display
  * Shows "X hours ago", "X days ago", or "X months ago" instead of regular dates
@@ -117,6 +104,176 @@ function enqueue_cwm_members_script() {
     }
 }
 add_action('wp_enqueue_scripts', 'enqueue_cwm_members_script');
+
+
+/*=====Pinned Posts on CWM Announcements Post Type=====*/
+
+
+// 1. Modify the blog query to show pinned posts first
+function modify_cwm_announcements_query($query, $args) {
+    // Only modify queries for cwm-announcements post type
+    if (!isset($args['post_type']) || $args['post_type'] !== 'cwm-announcements') {
+        return $query;
+    }
+    
+    // Check if this is the main announcements display (you might want to add a specific check here)
+    // For example, check for a specific module class or page
+    
+    // Step 1: Get all pinned post IDs first
+    $pinned_posts = get_posts(array(
+        'post_type' => 'cwm-announcements',
+        'posts_per_page' => -1,
+        'fields' => 'ids',
+        'tax_query' => array(
+            array(
+                'taxonomy' => 'announcements-categories',
+                'field'    => 'slug',
+                'terms'    => 'Pinned',
+            ),
+        ),
+    ));
+    
+    // Step 2: Get regular posts (excluding pinned ones)
+    $regular_posts_args = array(
+        'post_type' => 'cwm-announcements',
+        'posts_per_page' => $args['posts_per_page'] ? max(0, $args['posts_per_page'] - count($pinned_posts)) : -1,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'post_status' => 'publish',
+    );
+    
+    // Exclude pinned posts from regular posts
+    if (!empty($pinned_posts)) {
+        $regular_posts_args['post__not_in'] = $pinned_posts;
+    }
+    
+    $regular_posts = get_posts($regular_posts_args);
+    
+    // Step 3: Get pinned posts with proper order (you can customize this order)
+    $pinned_posts_objects = array();
+    if (!empty($pinned_posts)) {
+        $pinned_posts_objects = get_posts(array(
+            'post_type' => 'cwm-announcements',
+            'posts_per_page' => -1,
+            'post__in' => $pinned_posts,
+            'orderby' => 'menu_order date', // You can customize this ordering
+            'order' => 'ASC DESC', // Menu order ASC, then date DESC
+        ));
+    }
+    
+    // Step 4: Combine posts (pinned first, then regular)
+    $combined_posts = array_merge($pinned_posts_objects, $regular_posts);
+    
+    // Step 5: Create a new WP_Query with the combined posts
+    if (!empty($combined_posts)) {
+        $post_ids = wp_list_pluck($combined_posts, 'ID');
+        $new_query = new WP_Query(array(
+            'post_type' => 'cwm-announcements',
+            'post__in' => $post_ids,
+            'orderby' => 'post__in', // Maintain the order we specified
+            'posts_per_page' => count($post_ids),
+        ));
+        
+        return $new_query;
+    }
+    
+    return $query;
+}
+add_filter('et_builder_blog_query', 'modify_cwm_announcements_query', 10, 2);
+
+
+// 3. Add custom field for pinned post ordering
+function add_pinned_order_meta_box() {
+    add_meta_box(
+        'pinned_order',
+        'Pinned Post Order',
+        'pinned_order_callback',
+        'cwm-announcements',
+        'side',
+        'default'
+    );
+}
+add_action('add_meta_boxes', 'add_pinned_order_meta_box');
+
+function pinned_order_callback($post) {
+    wp_nonce_field('save_pinned_order', 'pinned_order_nonce');
+    $value = get_post_meta($post->ID, '_pinned_order', true);
+    ?>
+    <p>
+        <label for="pinned_order">Order (lower numbers appear first):</label><br>
+        <input type="number" id="pinned_order" name="pinned_order" value="<?php echo esc_attr($value); ?>" min="0" step="1" style="width: 100%;">
+    </p>
+    <p><small>Only applies to posts in the "Pinned" category. Leave blank for default ordering.</small></p>
+    <?php
+}
+
+function save_pinned_order($post_id) {
+    if (!isset($_POST['pinned_order_nonce']) || !wp_verify_nonce($_POST['pinned_order_nonce'], 'save_pinned_order')) {
+        return;
+    }
+    
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+        return;
+    }
+    
+    if (!current_user_can('edit_post', $post_id)) {
+        return;
+    }
+    
+    if (isset($_POST['pinned_order'])) {
+        update_post_meta($post_id, '_pinned_order', sanitize_text_field($_POST['pinned_order']));
+    } else {
+        delete_post_meta($post_id, '_pinned_order');
+    }
+}
+add_action('save_post', 'save_pinned_order');
+
+// 4. Optional: Add visual indicator in admin for pinned posts
+function add_pinned_column($columns) {
+    $columns['pinned'] = 'Pinned';
+    return $columns;
+}
+add_filter('manage_cwm-announcements_posts_columns', 'add_pinned_column');
+
+function show_pinned_column($column, $post_id) {
+    if ($column === 'pinned') {
+        $terms = get_the_terms($post_id, 'announcements-categories');
+        if ($terms && !is_wp_error($terms)) {
+            foreach ($terms as $term) {
+                if ($term->slug === 'pinned') { // WordPress creates lowercase slugs
+                    echo '<span style="color: #d63638; font-weight: bold;">📌 PINNED</span>';
+                    $order = get_post_meta($post_id, '_pinned_order', true);
+                    if ($order) {
+                        echo '<br><small>Order: ' . $order . '</small>';
+                    }
+                    return;
+                }
+            }
+        }
+        echo '—';
+    }
+}
+add_action('manage_cwm-announcements_posts_custom_column', 'show_pinned_column', 10, 2);
+
+// 6. Add class to pinned posts for styling
+function add_pinned_post_class($classes, $class, $post_id) {
+    if (get_post_type($post_id) === 'cwm-announcements') {
+        $terms = get_the_terms($post_id, 'announcements-categories');
+        if ($terms && !is_wp_error($terms)) {
+            foreach ($terms as $term) {
+                if ($term->slug === 'pinned') {
+                    $classes[] = 'pinned-announcement';
+                    break;
+                }
+            }
+        }
+    }
+    return $classes;
+}
+add_filter('post_class', 'add_pinned_post_class', 10, 3);
+
+
+
 
 
 /*CWM Member Count as a Shortcode*/
@@ -945,7 +1102,7 @@ add_action( 'save_post', 'set_default_featured_image' );
 
 function ensure_magnific_popup() {
     wp_enqueue_script('magnific-popup', get_site_url() . '/wp-content/themes/Divi/includes/builder/feature/dynamic-assets/assets/js/magnific-popup.js', array('jquery'), null, true);
-    wp_enqueue_style('magnific-popup-style', get_site_url() . '/wp-content/themes/Divi/includes/builder/feature/dynamic-assets/assets/css/magnific-popup.css');
+   /* wp_enqueue_style('magnific-popup-style', get_site_url() . '/wp-content/themes/Divi/includes/builder/feature/dynamic-assets/assets/css/magnific-popup.css'); */
 }
 add_action('wp_enqueue_scripts', 'ensure_magnific_popup', 99);
 
@@ -2671,20 +2828,9 @@ add_action ( 'wp', 'divi_child_theme_setup', 9999);
 //Add logo to login screen
 //=============================================*/
 
-add_action( 'login_enqueue_scripts', 'my_login_logo' );
-function my_login_logo() { ?>
-    <style type="text/css">
-        #login h1 a, .login h1 a {
-            background-image: url(<?php echo get_stylesheet_directory_uri(); ?>/images/CHS-logo.png); /*replace file in path*/
-            padding-bottom: 15px;
-			background-size: 130px;
-			background-position: center center;
-			width: 130px;
-            height: 130px; 
-        }
-</style>
-
-<?php }
+//*============================================
+//Add logo to login screen
+//=============================================*/
 
 
 add_filter( 'login_headerurl', 'my_login_logo_url' );
@@ -2696,4 +2842,3 @@ add_filter( 'login_headertitle', 'my_login_logo_url_title' );
 function my_login_logo_url_title() {
     return 'Cortes Island Housing Society';
 }
-
