@@ -28,6 +28,62 @@ function enqueue_dynamic_image_lightbox() {
 }
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
 
+
+// ----  Change the password form header text
+
+function custom_password_form_simple() {
+    $pwbox_id = rand();
+    $form_output = sprintf(
+        '<div class="et_password_protected_form">
+            <h1>%1$s</h1>
+            <p>%2$s</p>
+            <form action="%3$s" method="post">
+                <p><label for="%4$s">%5$s: </label><input name="post_password" id="%4$s" type="password" size="20" maxlength="20" /></p>
+                <p><button type="submit" name="et_divi_submit_button" class="et_submit_button et_pb_button">%6$s</button></p>
+            </form>
+        </div>',
+        'This page is password protected', // Custom header text
+        'To view the Member Portal, please enter the password that was emailed to you when you registered:', // Custom paragraph text
+        esc_url( site_url( 'wp-login.php?action=postpass', 'login_post' ) ),
+        esc_attr( 'pwbox-' . $pwbox_id ),
+        esc_html__( 'Password', 'Divi' ),
+        esc_html__( 'Submit', 'Divi' )
+    );
+    
+    $output = sprintf(
+        '<div class="et_pb_section et_section_regular">
+            <div class="et_pb_row">
+                <div class="et_pb_column et_pb_column_4_4">
+                    %1$s
+                </div>
+            </div>
+        </div>',
+        $form_output
+    );
+    
+    return $output;
+}
+add_filter( 'the_password_form', 'custom_password_form_simple', 9999 );
+
+
+/* ---- Add Section After Default Password Protect Section */
+
+
+function add_section_after_password_form( $content ) {
+    // Only run on password protected pages
+    if ( post_password_required() ) {
+        $custom_section = '<div id="password-additional-section">';
+        $custom_section .= do_shortcode('[et_pb_section global_module="247456"][/et_pb_section]');
+        $custom_section .= '</div> <!-- #password-additional-section -->';
+        
+        return $content . $custom_section;
+    }
+    
+    return $content;
+}
+add_filter( 'the_content', 'add_section_after_password_form' );
+
+
 /**
  * CWM Announcements Relative Time Display
  * Shows "X hours ago", "X days ago", or "X months ago" instead of regular dates
