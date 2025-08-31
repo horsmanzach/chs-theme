@@ -2898,3 +2898,17 @@ add_filter( 'login_headertitle', 'my_login_logo_url_title' );
 function my_login_logo_url_title() {
     return 'Cortes Island Housing Society';
 }
+
+function my_login_logo() { ?>
+    <style type="text/css">
+        #login h1 a, .login h1 a {
+            background-image: url(<?php echo site_url(); ?>//wp-content/uploads/2024/05/CHS_PrimaryLogo_Circular-1.png);
+            height: 180px;
+            width: 180px;
+            background-size: 100%;
+            background-repeat: no-repeat;
+            padding-bottom: 0px;
+        }
+    </style>
+<?php }
+add_action( 'login_enqueue_scripts', 'my_login_logo' );
