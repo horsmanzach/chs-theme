@@ -921,6 +921,11 @@ function sync_usp_email_to_acf($post_id) {
         $acf_email_fields = array(
             'email'
         );
+            } elseif ($post_type === 'cwm-members') {    // ← ADD THIS BLOCK
+        $acf_email_fields = array(
+            'cwm_email'
+        );
+        
     } else {
         // Not a supported post type
         return false;
@@ -989,7 +994,7 @@ function sync_usp_email_to_acf($post_id) {
  */
 add_action('wp_insert_post', function($post_id, $post, $update) {
     // Only for supported post types from USP Pro
-    if (($post->post_type === 'homeshare-listings' || $post->post_type === 'trades-directory') && isset($_POST['usp-form-submitted'])) {
+    if (($post->post_type === 'homeshare-listings' || $post->post_type === 'trades-directory' || $post->post_type === 'cwm-members') && isset($_POST['usp-form-submitted'])) {
         
         // Schedule delayed email sync to ensure USP Pro has saved the email data
         wp_schedule_single_event(time() + 2, 'delayed_email_sync', array($post_id, 'delay2'));
@@ -1010,7 +1015,7 @@ add_action('delayed_email_sync', function($post_id, $delay_tag = 'default') {
  */
 add_action('save_post', function($post_id, $post, $update) {
     // Only for supported post types from USP Pro
-    if (($post->post_type !== 'homeshare-listings' && $post->post_type !== 'trades-directory') || !isset($_POST['usp-form-submitted'])) {
+    if (($post->post_type !== 'homeshare-listings' && $post->post_type !== 'trades-directory' && $post->post_type !== 'cwm-members') || !isset($_POST['usp-form-submitted'])) {
         return;
     }
     
@@ -1052,7 +1057,7 @@ add_action('usp_submit_post_after', function($post_data) {
         global $wpdb;
         $post_id = $wpdb->get_var(
             "SELECT ID FROM {$wpdb->posts} 
-             WHERE post_type IN ('homeshare-listings', 'trades-directory')
+             WHERE post_type IN ('homeshare-listings', 'trades-directory', 'cwm-members')
              AND post_status IN ('publish', 'pending', 'draft')
              ORDER BY post_date DESC 
              LIMIT 1"
@@ -1082,7 +1087,7 @@ add_action('updated_post_meta', function($meta_id, $post_id, $meta_key, $meta_va
     if (in_array($meta_key, $email_meta_keys) && isset($_POST['usp-form-submitted'])) {
         // Check if this is a supported post type
         $post_type = get_post_type($post_id);
-        if ($post_type === 'homeshare-listings' || $post_type === 'trades-directory') {
+        if ($post_type === 'homeshare-listings' || $post_type === 'trades-directory' || $post_type === 'cwm-members')  {
             // Add shutdown action to sync after all meta is saved
             add_action('shutdown', function() use ($post_id) {
                 sync_usp_email_to_acf($post_id);
@@ -1099,7 +1104,7 @@ add_action('acf/save_post', function($post_id) {
     if (isset($_POST['usp-form-submitted'])) {
         // Check if this is a supported post type
         $post_type = get_post_type($post_id);
-        if ($post_type === 'homeshare-listings' || $post_type === 'trades-directory') {
+        if ($post_type === 'homeshare-listings' || $post_type === 'trades-directory' || $post_type === 'cwm-members') {
             // Run fix with a delay to ensure ACF has finished
             add_action('shutdown', function() use ($post_id) {
                 sync_usp_email_to_acf($post_id);
@@ -1116,7 +1121,7 @@ add_action('init', function() {
     if (isset($_GET['sync_emails']) && current_user_can('manage_options')) {
         
         $posts = get_posts(array(
-            'post_type' => array('homeshare-listings', 'trades-directory'),
+            'post_type' => array('homeshare-listings', 'trades-directory', 'cwm-members'),
             'numberposts' => -1,
             'post_status' => 'any'
         ));
@@ -1143,8 +1148,32 @@ add_action('init', function() {
 /**
  * Set default featured image for all posts when no featured image is set
  */
- function set_default_featured_image( $post_id ) {
-    $default_image_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/06/Placeholder-better.webp'; // Replace with the actual URL
+/**
+ * Set default featured image for specific post types only
+ * Only applies to cwm-members and homeshare-listings when no featured image is set
+ */
+function set_default_featured_image( $post_id ) {
+    // Prevent during autosave or revisions
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+    
+    // Check if we're dealing with a revision
+    if ( wp_is_post_revision( $post_id ) ) {
+        return;
+    }
+    
+    // Only apply to specific post types
+    $allowed_post_types = array( 'cwm-members', 'homeshare-listings' );
+    $post_type = get_post_type( $post_id );
+    
+    if ( ! in_array( $post_type, $allowed_post_types ) ) {
+        return;
+    }
+    
+    // Only set default if no featured image exists
+    $default_image_url = 'https://cortescommunityhousing.org/wp-content/uploads/2025/06/Placeholder-better.webp';
+    
     if ( ! has_post_thumbnail( $post_id ) ) {
         $image_id = attachment_url_to_postid( $default_image_url );
         if ( $image_id ) {
@@ -1152,7 +1181,7 @@ add_action('init', function() {
         }
     }
 }
-add_action( 'save_post', 'set_default_featured_image' ); 
+add_action( 'save_post', 'set_default_featured_image', 10, 1 );
 
 
 
@@ -2903,8 +2932,8 @@ function my_login_logo() { ?>
     <style type="text/css">
         #login h1 a, .login h1 a {
             background-image: url(<?php echo site_url(); ?>//wp-content/uploads/2024/05/CHS_PrimaryLogo_Circular-1.png);
-            height: 180px;
-            width: 180px;
+            height: 140px;
+            width: 140px;
             background-size: 100%;
             background-repeat: no-repeat;
             padding-bottom: 0px;
