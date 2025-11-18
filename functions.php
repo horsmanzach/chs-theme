@@ -29,6 +29,25 @@ function enqueue_dynamic_image_lightbox() {
 add_action('wp_enqueue_scripts', 'enqueue_dynamic_image_lightbox');
 
 
+
+/**
+ * Enqueue USP Form Processing Indicator Script
+ */
+function enqueue_usp_form_processing_indicator() {
+    // Only load on pages with USP forms
+    if (has_shortcode(get_the_content(), 'usp_form')) {
+        wp_enqueue_script(
+            'usp-form-processing',
+            get_stylesheet_directory_uri() . '/js/usp-form-processing.js',
+            array('jquery'),
+            '1.0',
+            true // Load in footer
+        );
+    }
+}
+add_action('wp_enqueue_scripts', 'enqueue_usp_form_processing_indicator');
+
+
 // ----  Change the password form header text
 
 function custom_password_form_simple() {
