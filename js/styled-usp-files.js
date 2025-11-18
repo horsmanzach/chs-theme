@@ -9,10 +9,12 @@ jQuery(document).ready(function ($) {
     if (uspFilesInput.length) {
         console.log('USP Files input found, styling interface');
 
-        // Determine if this is the guest form or host form (ORIGINAL LOGIC RESTORED)
-        var isGuestForm = false;
+        // FILE SIZE LIMIT CONFIGURATION (in bytes)
+        // Set to 5MB as displayed in UI
+        var MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 
-        // Check if we're on the guest registration page (ORIGINAL LOGIC RESTORED)
+        // Determine if this is the guest form or host form
+        var isGuestForm = false;
         if ($('.guest-registration-form').length ||
             window.location.href.indexOf('guest-registration') !== -1 ||
             $('form:contains("Guest Registration")').length) {
@@ -20,7 +22,7 @@ jQuery(document).ready(function ($) {
             console.log('Guest registration form detected');
         }
 
-        // NEW: Check if we're on the CWM member registration page (ADDITION ONLY)
+        // Check if we're on the CWM member registration page
         var isCwmForm = false;
         if ($('form[id*="247110"]').length ||
             $('input[name="usp-form-id"][value="247110"]').length ||
@@ -30,21 +32,18 @@ jQuery(document).ready(function ($) {
             console.log('CWM member form detected (Form ID: 247110)');
         }
 
-        // Set requirements based on form type (RESTORED ORIGINAL + CWM ADDITION)
+        // Set requirements based on form type
         var requiredCount, headerText, validationText;
 
         if (isCwmForm) {
-            // CWM specific settings
             requiredCount = 1;
             headerText = 'Choose a file from your computer';
             validationText = '1 image max';
         } else if (isGuestForm) {
-            // ORIGINAL GUEST SETTINGS RESTORED
             requiredCount = 1;
             headerText = 'Select 1 image';
             validationText = '1 image max';
         } else {
-            // ORIGINAL HOST SETTINGS RESTORED
             requiredCount = 1;
             headerText = 'Select up to 5 images. The first image added will be used as the featured image.';
             validationText = 'Upload between 1 - 5 images.';
@@ -58,7 +57,7 @@ jQuery(document).ready(function ($) {
         var wrapper = $('<div class="custom-file-upload-wrapper"></div>');
         container.append(wrapper);
 
-        // Main upload section (RESTORED ORIGINAL)
+        // Main upload section
         wrapper.append(
             '<div class="main-upload-section">' +
             '<div class="upload-icon"><img src="https://cortescommunityhousing.org/wp-content/uploads/2025/04/Default-Image.png" alt="Upload"></div>' +
@@ -71,7 +70,7 @@ jQuery(document).ready(function ($) {
         var previewContainer = $('<div class="file-preview-container multi-preview" style="display:none;"></div>');
         wrapper.append(previewContainer);
 
-        // Drag and drop zone (RESTORED ORIGINAL LOGIC)
+        // Drag and drop zone
         var dropZone = $(
             '<div class="drag-drop-zone">' +
             '<div class="drag-drop-content">' +
@@ -84,7 +83,7 @@ jQuery(document).ready(function ($) {
         );
         wrapper.append(dropZone);
 
-        // File info section (RESTORED ORIGINAL LOGIC)
+        // File info section
         var fileInfo = $(
             '<div class="file-info multi-info" style="display:none;">' +
             '<p><span class="file-count">0</span> ' + (isGuestForm || isCwmForm ? 'image' : 'files') + ' selected (' + validationText + ')</p>' +
@@ -93,11 +92,19 @@ jQuery(document).ready(function ($) {
         );
         wrapper.append(fileInfo);
 
+        // Error message container (NEW)
+        var errorContainer = $(
+            '<div class="file-upload-error" style="display:none; color: #d32f2f; background: #ffebee; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #ef9a9a;">' +
+            '<p class="error-message" style="margin: 0;"></p>' +
+            '</div>'
+        );
+        wrapper.append(errorContainer);
+
         // Restrictions
         wrapper.append(
             '<div class="file-restrictions">' +
             '<p>Supported formats: JPG, JPEG, PNG, GIF</p>' +
-            '<p>Maximum file size: 10MB per image</p>' +
+            '<p>Maximum file size: 5MB per image</p>' +
             '</div>'
         );
 
@@ -117,41 +124,104 @@ jQuery(document).ready(function ($) {
 
         // Use first input for operations
         uspFilesInput = $('input[name="usp-files[]"]:first');
-        uspFilesInput.attr('multiple', !isGuestForm && !isCwmForm); // Only allow multiple for host form
+        uspFilesInput.attr('multiple', !isGuestForm && !isCwmForm);
+
+        // NEW: Function to validate file size
+        function validateFileSize(file) {
+            if (file.size > MAX_FILE_SIZE) {
+                var fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                var maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
+                return {
+                    valid: false,
+                    message: 'File "' + file.name + '" is ' + fileSizeMB + 'MB. Maximum file size is ' + maxSizeMB + 'MB. Please choose a smaller file.'
+                };
+            }
+            return { valid: true };
+        }
+
+        // NEW: Function to show error
+        function showError(message) {
+            errorContainer.find('.error-message').text(message);
+            errorContainer.show();
+            // Auto-hide after 8 seconds
+            setTimeout(function () {
+                errorContainer.fadeOut();
+            }, 8000);
+        }
+
+        // NEW: Function to clear error
+        function clearError() {
+            errorContainer.hide();
+            errorContainer.find('.error-message').text('');
+        }
 
         // Make elements clickable
         dropZone.find('.select-file-button').on('click', function (e) {
             e.preventDefault();
+            clearError(); // Clear any existing errors
             uspFilesInput.click();
         });
 
         dropZone.on('click', function (e) {
             if (!$(e.target).closest('button').length) {
+                clearError(); // Clear any existing errors
                 uspFilesInput.click();
             }
         });
 
-        // Handle file selection (RESTORED ORIGINAL LOGIC)
+        // Handle file selection with IMMEDIATE validation
         uspFilesInput.on('change', function () {
             if (this.files && this.files.length) {
+                var invalidFiles = [];
+                var validFiles = [];
+
+                // VALIDATE EACH FILE IMMEDIATELY
+                for (var i = 0; i < this.files.length; i++) {
+                    var validation = validateFileSize(this.files[i]);
+                    if (validation.valid) {
+                        validFiles.push(this.files[i]);
+                    } else {
+                        invalidFiles.push({
+                            file: this.files[i],
+                            message: validation.message
+                        });
+                    }
+                }
+
+                // If any files are invalid, show error and prevent upload
+                if (invalidFiles.length > 0) {
+                    // Show error message for the first invalid file
+                    showError(invalidFiles[0].message);
+
+                    // Reset the file input
+                    uspFilesInput.val('');
+
+                    // Don't add any files to selection
+                    console.log('File upload blocked: File too large');
+                    return false;
+                }
+
+                // If we get here, all files are valid
+                clearError();
+
                 if (isGuestForm || isCwmForm) {
                     // For guest and CWM form, just take the first file
                     selectedFiles = [];
-                    selectedFiles.push(this.files[0]);
+                    selectedFiles.push(validFiles[0]);
                 } else {
                     // For host form, add new files to existing selection
-                    for (var i = 0; i < this.files.length; i++) {
+                    for (var i = 0; i < validFiles.length; i++) {
                         // Skip duplicates
                         var isDuplicate = false;
                         for (var j = 0; j < selectedFiles.length; j++) {
-                            if (selectedFiles[j].name === this.files[i].name &&
-                                selectedFiles[j].size === this.files[i].size) {
+                            if (selectedFiles[j].name === validFiles[i].name &&
+                                selectedFiles[j].size === validFiles[i].size) {
                                 isDuplicate = true;
                                 break;
                             }
                         }
                         if (!isDuplicate) {
-                            selectedFiles.push(this.files[i]);
+                            selectedFiles.push(validFiles[i]);
                         }
                     }
                 }
@@ -165,6 +235,7 @@ jQuery(document).ready(function ($) {
         fileInfo.find('.remove-files').on('click', function () {
             selectedFiles = [];
             uspFilesInput.val('');
+            clearError();
             updatePreview();
         });
 
@@ -188,46 +259,72 @@ jQuery(document).ready(function ($) {
             }, false);
         });
 
-        // Handle file drop (RESTORED ORIGINAL LOGIC)
+        // Handle file drop with IMMEDIATE validation
         dropZone[0].addEventListener('drop', function (e) {
-            var files = e.dataTransfer.files;
+            var dt = e.dataTransfer;
+            var files = dt.files;
 
-            if ((isGuestForm || isCwmForm) && files.length > 0) {
-                // For guest and CWM form, just take the first file
-                selectedFiles = [files[0]];
-            } else {
-                // For host form, add dropped files to selection
+            if (files.length) {
+                var invalidFiles = [];
+                var validFiles = [];
+
+                // VALIDATE EACH FILE IMMEDIATELY
                 for (var i = 0; i < files.length; i++) {
-                    var isDuplicate = false;
-                    for (var j = 0; j < selectedFiles.length; j++) {
-                        if (selectedFiles[j].name === files[i].name &&
-                            selectedFiles[j].size === files[i].size) {
-                            isDuplicate = true;
-                            break;
-                        }
-                    }
-                    if (!isDuplicate) {
-                        selectedFiles.push(files[i]);
+                    var validation = validateFileSize(files[i]);
+                    if (validation.valid) {
+                        validFiles.push(files[i]);
+                    } else {
+                        invalidFiles.push({
+                            file: files[i],
+                            message: validation.message
+                        });
                     }
                 }
-            }
 
-            // Update UI
-            updatePreview();
+                // If any files are invalid, show error and prevent upload
+                if (invalidFiles.length > 0) {
+                    showError(invalidFiles[0].message);
+                    console.log('Drag & drop blocked: File too large');
+                    return false;
+                }
+
+                // If we get here, all files are valid
+                clearError();
+
+                if (isGuestForm || isCwmForm) {
+                    selectedFiles = [];
+                    selectedFiles.push(validFiles[0]);
+                } else {
+                    for (var i = 0; i < validFiles.length; i++) {
+                        var isDuplicate = false;
+                        for (var j = 0; j < selectedFiles.length; j++) {
+                            if (selectedFiles[j].name === validFiles[i].name &&
+                                selectedFiles[j].size === validFiles[i].size) {
+                                isDuplicate = true;
+                                break;
+                            }
+                        }
+                        if (!isDuplicate) {
+                            selectedFiles.push(validFiles[i]);
+                        }
+                    }
+                }
+
+                updatePreview();
+            }
         }, false);
 
-        // Function to update the UI with all selected files
+        // Preview update function
         function updatePreview() {
-            previewContainer.empty();
-
             if (selectedFiles.length > 0) {
-                // Create previews for each file
+                previewContainer.empty();
+
                 for (var i = 0; i < selectedFiles.length; i++) {
                     (function (file, index) {
                         var reader = new FileReader();
                         reader.onload = function (e) {
                             var preview = $(
-                                '<div class="preview-item" data-index="' + index + '">' +
+                                '<div class="preview-item">' +
                                 '<img src="' + e.target.result + '" alt="Preview">' +
                                 '<div class="file-name">' +
                                 (file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name) +
@@ -237,11 +334,11 @@ jQuery(document).ready(function ($) {
                             );
                             previewContainer.append(preview);
 
-                            // Add remove button handler for host form only
                             if (!isGuestForm && !isCwmForm) {
                                 preview.find('.remove-file').on('click', function () {
                                     var idx = $(this).data('index');
                                     selectedFiles.splice(idx, 1);
+                                    clearError();
                                     updatePreview();
                                 });
                             }
@@ -250,7 +347,6 @@ jQuery(document).ready(function ($) {
                     })(selectedFiles[i], i);
                 }
 
-                // Show preview and info
                 previewContainer.show();
                 fileInfo.show();
                 fileInfo.find('.file-count').text(selectedFiles.length);
@@ -264,10 +360,8 @@ jQuery(document).ready(function ($) {
                 dropZone.addClass('has-file');
                 $('.main-upload-section').hide();
 
-                // Update form data for submission
                 updateFormData();
             } else {
-                // Reset UI if no files
                 previewContainer.hide();
                 fileInfo.hide();
                 $('.main-upload-section').show();
@@ -279,18 +373,14 @@ jQuery(document).ready(function ($) {
         // Update form data for submission
         function updateFormData() {
             try {
-                // Create DataTransfer object
                 var dataTransfer = new DataTransfer();
 
-                // Add all files
                 for (var i = 0; i < selectedFiles.length; i++) {
                     dataTransfer.items.add(selectedFiles[i]);
                 }
 
-                // Set files property on input
                 uspFilesInput[0].files = dataTransfer.files;
 
-                // Add validation fields
                 $('input[name="usp_file_count"], input[name="usp_pro_files_validated"]').remove();
                 if (selectedFiles.length >= requiredCount) {
                     $('<input type="hidden" name="usp_file_count" value="' + selectedFiles.length + '">').appendTo(container);
@@ -301,14 +391,12 @@ jQuery(document).ready(function ($) {
             }
         }
 
-        // Form submission validation (MODIFIED ONLY TO MAKE CWM OPTIONAL)
+        // Form submission validation (makes CWM upload optional)
         $('form:has(input[name="usp-files[]"])').on('submit', function (e) {
-            // NEW: Make CWM upload optional
             if (isCwmForm) {
                 return true; // No validation for CWM forms
             }
 
-            // ORIGINAL VALIDATION FOR GUEST AND HOST (UNCHANGED)
             if (selectedFiles.length < requiredCount) {
                 alert('Please select ' + requiredCount + ' image(s) before submitting.');
                 e.preventDefault();
@@ -317,7 +405,7 @@ jQuery(document).ready(function ($) {
             return true;
         });
 
-        // Add CSS for remove button
+        // Add CSS for remove button and error messages
         $('<style>\
             .preview-item {\
                 position: relative;\
@@ -336,6 +424,19 @@ jQuery(document).ready(function ($) {
                 text-align: center;\
                 padding: 0;\
                 cursor: pointer;\
+            }\
+            .file-upload-error {\
+                animation: slideDown 0.3s ease-out;\
+            }\
+            @keyframes slideDown {\
+                from {\
+                    opacity: 0;\
+                    transform: translateY(-10px);\
+                }\
+                to {\
+                    opacity: 1;\
+                    transform: translateY(0);\
+                }\
             }\
         </style>').appendTo('head');
     }
